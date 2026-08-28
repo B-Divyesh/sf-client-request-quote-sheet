@@ -1,0 +1,11 @@
+{
+  "slug": "client-request-quote-sheet",
+  "title": "Request Sheet",
+  "territory": "utilities",
+  "user": "A service business with repeat clients who needs clients to request a priced or price-on-ask quote without exposing a full storefront or forcing a portal migration.",
+  "current_workaround": "Take requests by email or WhatsApp, copy line items into a quote, or build a storefront/API integration that is excessive for a few services or custom jobs.",
+  "smallest_useful_product": "A static, shareable service/product request form with allowed items, quantities, free-text requirements, and a downloadable quote-draft CSV/PDF for the owner.",
+  "success_measure": "At least half of repeat-client requests arrive through the sheet in a 30-day pilot, and owners produce a quote draft in under three minutes for 80% of them.",
+  "artifact_class": "static-web",
+  "monetization": "freemium"
+}
