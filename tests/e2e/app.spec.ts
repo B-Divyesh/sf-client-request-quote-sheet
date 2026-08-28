@@ -1,6 +1,22 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
+async function waitForServiceWorkerControl(page: import('@playwright/test').Page): Promise<void> {
+  const controlled = await page.evaluate(async () => {
+    if (!('serviceWorker' in navigator)) return false;
+    if (navigator.serviceWorker.controller) return true;
+
+    const claimed = new Promise<boolean>((resolve) => {
+      navigator.serviceWorker.addEventListener('controllerchange', () => resolve(Boolean(navigator.serviceWorker.controller)), { once: true });
+    });
+
+    await navigator.serviceWorker.ready;
+    return navigator.serviceWorker.controller ? true : claimed;
+  });
+
+  expect(controlled).toBe(true);
+}
+
 test('builds, shares, reviews and exports a request', async ({ page }, testInfo) => {
   const browserErrors: string[] = [];
   page.on('console', (message) => { if (message.type() === 'error') browserErrors.push(message.text()); });
@@ -74,17 +90,26 @@ test('moves keyboard focus into main content through the skip link', async ({ pa
   await expect(page.locator('main#main')).toBeFocused();
 });
 
-test('keeps an installed shell usable offline and accepts a service-worker update check', async ({ page, context }) => {
+test('keeps the controlled production shell and saved request sheet after an offline reload', async ({ page, context }) => {
   await page.goto('/');
+  await page.locator('#business-name').fill('Offline proof studio');
+  await page.waitForFunction(() => localStorage.getItem('request-sheet:builder:v1')?.includes('Offline proof studio') ?? false);
+
+  await waitForServiceWorkerControl(page);
   await page.evaluate(async () => {
     const registration = await navigator.serviceWorker.ready;
     await registration.update();
   });
-  await context.setOffline(true);
-  await page.reload();
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/A request sheet/);
-  await expect(page.getByText(/Offline — your saved sheet/)).toBeVisible();
-  await context.setOffline(false);
+
+  try {
+    await context.setOffline(true);
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/A request sheet/);
+    await expect(page.locator('#business-name')).toHaveValue('Offline proof studio');
+    await expect(page.getByText(/Offline — your saved sheet/)).toBeVisible();
+  } finally {
+    await context.setOffline(false);
+  }
 });
 
 test('accepts a returned Studio license and removes it from the URL', async ({ page }) => {
