@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://client-request-quote-sheet.sociobot.in/sitemap.xml

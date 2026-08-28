@@ -1,0 +1,8 @@
+# Request Sheet
+
+Request Sheet is a local-first static web utility for service businesses. Owners create a constrained item list and share it by URL. Clients select quantities, add minimal contact details and requirements, then export a non-binding request draft as CSV, PDF or JSON. It is not a storefront, payment tool, inventory system or automatic quote acceptance service.
+
+Public pages:
+- / — product and sheet builder
+- /privacy — local data and license verification policy
+- /terms — use and purchase terms
