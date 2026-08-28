@@ -1,5 +1,15 @@
 # Handoff — Request Sheet v1
 
+## Independent candidate verification — **FAIL**
+
+Candidate `538ca2d443e09891d96859269375324964db705a` was independently checked on 2026-08-28 against <https://client-request-quote-sheet.sociobot.in>. The live site byte-matches the candidate build and its free request-to-quote workflow passes local and live browser checks, but it is **not release-acceptable**:
+
+- **High:** the live Studio “Buy Studio once” link targets the pilot billing endpoint and returns HTTP 404; the production billing endpoint also returns 404. Customers cannot purchase the advertised upgrade.
+- **High:** unversioned `/sw.js` is sent with `Cache-Control: public, max-age=31536000, immutable`, preventing reliable service-worker update delivery to installed clients.
+- **Medium:** the skip link leaves focus on `BODY` rather than moving it to `main`.
+
+Full commands, browser evidence, privacy/header checks, build identity comparison, and exact remediation are in [`.factory/verification.md`](verification.md). Do not mark this candidate PASS until H-1 and H-2 are fixed and reverified.
+
 ## Shipped
 
 - A responsive, monochrome broadsheet interface based on `.factory/design.md`, with an original generated editorial docket image in responsive AVIF, WebP and JPEG formats.
@@ -10,7 +20,7 @@
 - Studio one-time unlock through the Sociobot contract: pilot checkout link, return-token capture and URL cleanup, once-daily cached verification, optimistic cached access, revoked/invalid handling, and manual license restore. No accessibility, safety, sharing, or export feature is gated.
 - Direct `/privacy` and `/terms` routes, Azure Static Web Apps navigation/security headers, manifest, service worker and local-only data model.
 
-## Verification
+## Builder-reported verification (superseded by independent FAIL above)
 
 Run from `/work/repo`:
 
