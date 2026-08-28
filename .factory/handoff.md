@@ -1,55 +1,53 @@
-# Handoff — Request Sheet v1
+# Handoff — Request Sheet v1 repair
 
-## Independent candidate verification — **FAIL**
+## Status — deployed; release acceptance remains blocked on billing registration
 
-Candidate `538ca2d443e09891d96859269375324964db705a` was independently checked on 2026-08-28 against <https://client-request-quote-sheet.sociobot.in>. The live site byte-matches the candidate build and its free request-to-quote workflow passes local and live browser checks, but it is **not release-acceptable**:
+Repair commit: `abc5f3592b9c5a7c1b8ce7fa31c139641e3b33e4` (pushed to `main`)<br>
+Deployment: `https://client-request-quote-sheet.sociobot.in` (Azure Static Web Apps deployment `0d91bbcd-87da-4d2a-8ac9-3badfcd3e2a0`)
 
-- **High:** the live Studio “Buy Studio once” link targets the pilot billing endpoint and returns HTTP 404; the production billing endpoint also returns 404. Customers cannot purchase the advertised upgrade.
-- **High:** unversioned `/sw.js` is sent with `Cache-Control: public, max-age=31536000, immutable`, preventing reliable service-worker update delivery to installed clients.
-- **Medium:** the skip link leaves focus on `BODY` rather than moving it to `main`.
+The independent verifier's service-worker and keyboard findings are repaired and verified live. The client-side cause of the Studio URL issue is also repaired: release builds now default to `https://api.sociobot.in`, and the deployed purchase link uses that exact origin. The remaining blocker is outside this repository: on 2026-08-28 UTC, `GET https://api.sociobot.in/api/v1/products/client-request-quote-sheet/checkout` still returned HTTP 404 with `{"error":"enabled factory product","status":404}`. A customer therefore still cannot complete the advertised ₹999 purchase until the factory registers this paid product and its return URL with the Sociobot billing engine.
 
-Full commands, browser evidence, privacy/header checks, build identity comparison, and exact remediation are in [`.factory/verification.md`](verification.md). Do not mark this candidate PASS until H-1 and H-2 are fixed and reverified.
+The repository contract explicitly keeps billing registration outside product code; no payment-provider code, secret, or billing administration action was added here. After registration, re-run a live checkout redirect and return-token verification before marking this release accepted.
 
-## Shipped
+## Repairs made
 
-- A responsive, monochrome broadsheet interface based on `.factory/design.md`, with an original generated editorial docket image in responsive AVIF, WebP and JPEG formats.
-- Owner workflow: edit business details and up to 20 allowed items, choose priced or price-on-ask lines, autosave locally, and create/copy/open a self-contained share link.
-- Client workflow: select items, adjust quantities, see a priced-line estimate, enter minimal contact/context, review the non-binding status, and create a reference-numbered request packet.
-- Owner handoff: CSV and lightweight PDF quote-draft exports, portable JSON packet, copied plain-text summary, email handoff, and local JSON packet import/re-export.
-- First-class invalid-link, form error, empty-selection, offline, saved, and license states. Local data deletion is available from every page.
-- Studio one-time unlock through the Sociobot contract: pilot checkout link, return-token capture and URL cleanup, once-daily cached verification, optimistic cached access, revoked/invalid handling, and manual license restore. No accessibility, safety, sharing, or export feature is gated.
-- Direct `/privacy` and `/terms` routes, Azure Static Web Apps navigation/security headers, manifest, service worker and local-only data model.
+- **H-1 client configuration:** changed the release default from the pilot endpoint to `https://api.sociobot.in`; an explicit `VITE_BILLING_BASE_URL` remains available only for an intentionally registered preview/pilot build. The CSP now permits only the production billing origin.
+- **H-2 service-worker delivery:** added a first-match `/sw.js` Azure Static Web Apps route with `Cache-Control: no-cache`; hashed `/assets/*`, `/*.js`, and `/*.css` remain one-year immutable. Bumped the offline cache to `request-sheet-v3`.
+- **M-1 skip link:** made `main#main` programmatically focusable and added direct focus transfer on skip-link activation.
+- Added regression coverage for the production checkout URL, deployed cache/CSP response policy, keyboard skip focus, service-worker update invocation, and offline reload. Browser tests now run against a production build/preview rather than Vite development mode.
 
-## Builder-reported verification (superseded by independent FAIL above)
+## Verification evidence
 
-Run from `/work/repo`:
+Run from `/work/repo` on 2026-08-28 UTC:
 
 ```sh
-npm install
+npm ci
+npm audit --audit-level=high
 npm test
 npm run build
 ```
 
-Verified 2026-08-28:
+- Clean install completed; `npm audit --audit-level=high` found **0 vulnerabilities**.
+- `npm test` passed: **9** Vitest assertions and **14** Playwright runs (7 scenarios in desktop Chromium and 390×844 mobile Chromium). The suite covers the existing owner/client/export workflow, broken links, legal routes, license return cleanup, production checkout URL, skip-link keyboard focus, service-worker update call, and offline reload.
+- Production build passed TypeScript and emitted `dist/index.html`. Entry JS is **37,695 B** (**12.97 KB gzip**); CSS is **17,114 B** (**4.43 KB gzip**); the 960px AVIF hero is **15,761 B**. All remain within product budgets. This repository has no configured lint script; TypeScript strict checking runs in `npm run build`.
+- Built output contains no `pilot-api.sociobot.in` reference. The deployed `index.html`, `sw.js`, favicon, manifest, robots, sitemap, llms file, hashed JS/CSS, and tested hero asset byte-match `dist/`.
+- Factory `verify-url.sh` against the deployed URL returned HTTP 200 in **759 ms**, with no browser errors, title/lang/one-H1/main present, and no missing image alt text or unlabeled buttons.
+- Live Playwright + axe checks on desktop and 390×844 mobile found **0 serious/critical** violations, no console/page errors, no horizontal overflow, production checkout link `https://api.sociobot.in/api/v1/products/client-request-quote-sheet/checkout`, and successful keyboard focus transfer to `main#main`.
+- Live service-worker check activated `/sw.js`, completed `registration.update()`, and then reloaded the shell offline with the offline banner visible.
+- Live response policy: `/sw.js` returns `Cache-Control: no-cache`; `/assets/index-CRhhxPi3.js` returns `Cache-Control: public, max-age=31536000, immutable`; the deployed CSP allows only `https://api.sociobot.in` for `connect-src` and `form-action`. HSTS, `nosniff`, referrer policy, and restrictive permissions policy are present.
 
-- `npm test`: 6 Vitest assertions and 8 Playwright project tests passed (desktop Chromium + 390×844 mobile).
-- End-to-end test covers build → share → select → validate → review → packet → CSV download; it also checks no browser console/page errors and no serious/critical axe violations.
-- `npm run build`: passes TypeScript and writes `dist/index.html`.
-- Initial production assets, uncompressed: 37.1 KB JS, 17.1 KB CSS; 960 px hero is 15.8 KB AVIF / 32.0 KB WebP / 66.3 KB JPEG. All are below the stated budgets.
-- Lighthouse mobile against the production build: Performance 100, Accessibility 100, Best Practices 100, SEO 100; LCP 1.2 s, CLS 0, Total Blocking Time 10 ms. INP is not available from a synthetic no-interaction run; the end-to-end flow exercises interaction paths.
-- Manual production-browser offline reload passed after service-worker activation; the page reports its offline state and retains the builder/export functionality.
-- `npm audit`: 0 production and development vulnerabilities.
+## Product and privacy
 
-## Deployment
+- The original static, local-first request-to-quote workflow is unchanged: owners create bearer-readable catalogue links; clients select allowed items, add contact/context, review the non-binding request, and prepare CSV, PDF, JSON, copied-text, or email handoff material.
+- Studio remains a ₹999 one-time presentation unlock. Core sharing, accessibility, safety notices, and CSV/PDF/JSON exports remain free.
+- No analytics, remote fonts, third-party scripts, or application database are used. Local storage behavior and deletion are documented at `/privacy`; `/terms` and the MIT license remain included.
 
-- Build command: `npm run build`
-- Static output: `./dist`
-- Release should set `VITE_BILLING_BASE_URL=https://api.sociobot.in`; without it, the documented staging default is `https://pilot-api.sociobot.in`.
-- The factory must register the `client-request-quote-sheet` paid product and return URL; no opaque product ID is hardcoded here.
+## Required factory follow-up
 
-## Known constraints / next steps
+Register the paid product slug `client-request-quote-sheet` in the Sociobot production billing engine with return URL `https://client-request-quote-sheet.sociobot.in/` and the advertised one-time ₹999 Studio offer. Then verify that its checkout endpoint redirects to hosted checkout and that a returned `?license=` token verifies as valid on the deployed product. This is the single remaining release-acceptance blocker.
 
-- Static email links cannot attach downloaded files; clients may send the prefilled text or attach the JSON/PDF/CSV themselves. A remote inbox is intentionally out of v1 scope.
-- PDF uses the browser-independent built-in Helvetica PDF font. CSV/JSON preserve Unicode; PDF transliterates Latin diacritics and omits unsupported non-Latin glyphs. A future self-hosted subset font can broaden PDF scripts while staying inside the JavaScript budget.
-- Share links contain the catalogue and are intentionally bearer-readable. They never contain client details. Very long catalogues are capped at 20 items to keep links practical.
-- No live production billing call was made from this work order; mocked verification covers the contract and the factory completes registration/release switching.
+## Known product constraints
+
+- Static email links cannot attach downloaded files; senders can use the prepared text or attach the JSON/PDF/CSV themselves.
+- PDF uses built-in Helvetica. CSV/JSON preserve Unicode; PDF transliterates Latin diacritics and omits unsupported non-Latin glyphs.
+- Shared sheet links intentionally expose only the owner's catalogue to anyone holding the link; client details never enter the link. Catalogues are capped at 20 items.
