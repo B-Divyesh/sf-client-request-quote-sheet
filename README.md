@@ -39,6 +39,14 @@ VITE_BILLING_BASE_URL=https://pilot-api.sociobot.in npm run build
 
 Checkout and verification follow `/api/v1/products/client-request-quote-sheet/...`; there is no payment-provider code or product ID in this repository.
 
+Before deploying a paid release, run the live factory contract check as well:
+
+```sh
+npm run test:billing-live
+```
+
+It verifies that the exact product is enabled in the production catalog with the advertised ₹999 INR price and this product's return URL, that checkout redirects to the hosted merchant page, and that license verification responds. It intentionally runs separately from offline/local tests because it depends on the factory billing service.
+
 ## Structure
 
 - `src/main.ts` — owner builder, client request flow, legal views and interaction binding

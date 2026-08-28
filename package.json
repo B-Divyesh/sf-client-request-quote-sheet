@@ -9,7 +9,8 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run src && playwright test",
     "test:unit": "vitest run src",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:billing-live": "node scripts/verify-billing-live.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
