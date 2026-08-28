@@ -31,10 +31,10 @@ npm run build
 
 Studio is a ₹999 one-time presentation upgrade. It removes the Request Sheet credit and adds a custom closing line and client-reference field. Sharing and every export format remain free.
 
-The staging build uses the Sociobot pilot billing endpoint. Set the release endpoint without editing source:
+Release builds use the Sociobot production billing endpoint by default. A registered product sends buyers to hosted checkout and returns them to this site with a license token. For a registered pilot product only, opt into the pilot endpoint explicitly:
 
 ```sh
-VITE_BILLING_BASE_URL=https://api.sociobot.in npm run build
+VITE_BILLING_BASE_URL=https://pilot-api.sociobot.in npm run build
 ```
 
 Checkout and verification follow `/api/v1/products/client-request-quote-sheet/...`; there is no payment-provider code or product ID in this repository.

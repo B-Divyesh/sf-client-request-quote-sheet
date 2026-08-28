@@ -37,7 +37,7 @@ function shell(content: string, section = ''): string {
         <a href="#studio">Studio <span class="edition-mark">+</span></a>
       </nav>
     </header>
-    <main id="main">${content}</main>
+    <main id="main" tabindex="-1">${content}</main>
     <footer class="site-footer">
       <div><strong>Request Sheet</strong><p>A quiet handoff between a client request and a human quote.</p></div>
       <div><a href="/privacy">Privacy</a><a href="/terms">Terms</a><button class="link-button" data-action="clear-data">Erase local data</button></div>
@@ -427,6 +427,11 @@ function render(): void {
   }
   bindGlobal();
 }
+
+document.querySelector<HTMLAnchorElement>('.skip-link')?.addEventListener('click', (event) => {
+  event.preventDefault();
+  document.querySelector<HTMLElement>('#main')?.focus();
+});
 
 window.addEventListener('hashchange', render);
 window.addEventListener('online', render);

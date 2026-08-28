@@ -10,8 +10,10 @@ export interface LicenseState {
 interface Verdict { valid: boolean; checkedAt: number; reason?: string }
 
 const PRODUCT = 'client-request-quote-sheet';
-const BASE = import.meta.env.VITE_BILLING_BASE_URL || 'https://pilot-api.sociobot.in';
-export const checkoutUrl = `${BASE}/api/v1/products/${PRODUCT}/checkout`;
+// Release builds must always point at the live billing engine. A preview may
+// explicitly opt into the pilot endpoint with VITE_BILLING_BASE_URL.
+export const billingBaseUrl = import.meta.env.VITE_BILLING_BASE_URL || 'https://api.sociobot.in';
+export const checkoutUrl = `${billingBaseUrl}/api/v1/products/${PRODUCT}/checkout`;
 
 export function initialLicense(): LicenseState {
   const params = new URLSearchParams(location.search);
@@ -33,7 +35,7 @@ export async function verifyLicense(state: LicenseState, force = false): Promise
   const cached = readJson<Verdict | null>(STORAGE.licenseVerdict, null);
   if (!force && cached && Date.now() - cached.checkedAt < 86_400_000) return { ...state, valid: cached.valid, checking: false };
   try {
-    const response = await fetch(`${BASE}/api/v1/products/${PRODUCT}/verify?license=${encodeURIComponent(state.token)}`, { headers: { Accept: 'application/json' } });
+    const response = await fetch(`${billingBaseUrl}/api/v1/products/${PRODUCT}/verify?license=${encodeURIComponent(state.token)}`, { headers: { Accept: 'application/json' } });
     if (!response.ok) throw new Error('Verification unavailable');
     const result = await response.json() as { valid?: boolean; reason?: string };
     const valid = result.valid === true;

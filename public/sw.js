@@ -1,4 +1,4 @@
-const CACHE = 'request-sheet-v2';
+const CACHE = 'request-sheet-v3';
 const SHELL = [
   '/',
   '/favicon.svg',

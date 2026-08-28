@@ -58,8 +58,37 @@ test('legal routes are direct-loadable and local data can be erased', async ({ p
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('A draft is not an order.');
 });
 
+test('keeps the Studio purchase link on the production billing endpoint', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('link', { name: /Buy Studio once/ })).toHaveAttribute(
+    'href',
+    'https://api.sociobot.in/api/v1/products/client-request-quote-sheet/checkout',
+  );
+});
+
+test('moves keyboard focus into main content through the skip link', async ({ page }) => {
+  await page.goto('/');
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('link', { name: 'Skip to main content' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('main#main')).toBeFocused();
+});
+
+test('keeps an installed shell usable offline and accepts a service-worker update check', async ({ page, context }) => {
+  await page.goto('/');
+  await page.evaluate(async () => {
+    const registration = await navigator.serviceWorker.ready;
+    await registration.update();
+  });
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/A request sheet/);
+  await expect(page.getByText(/Offline — your saved sheet/)).toBeVisible();
+  await context.setOffline(false);
+});
+
 test('accepts a returned Studio license and removes it from the URL', async ({ page }) => {
-  await page.route('https://pilot-api.sociobot.in/**/verify?license=test-token', async (route) => {
+  await page.route('https://api.sociobot.in/**/verify?license=test-token', async (route) => {
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ valid: true, reason: 'ok', expires_at: null }) });
   });
   await page.goto('/?license=test-token#studio');
