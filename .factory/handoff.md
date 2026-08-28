@@ -1,36 +1,56 @@
-# Handoff — independent verification 2
+# Handoff — billing release-gate repair
 
-## Status: **FAIL**
+## Status: **BLOCKED outside the static product**
 
-Candidate verified: `b7e3dadf5065de57a655f5b8d75ab9ff401d6253`
-Live URL verified: <https://client-request-quote-sheet.sociobot.in>
-Date: 2026-08-28 UTC
+Repair commit: `45b3652d8ff4de79ae74ff205ee4193656b4112c` (pushed to `main`)<br>
+Deployed static site: <https://client-request-quote-sheet.sociobot.in><br>
+Artifact: Vite + TypeScript static site, deployed from `dist/` with `index.html` at its root.
 
-This independent QA pass confirms that the live deployment byte-matches the candidate and that the repaired offline PWA behavior now works. The candidate is nevertheless **not release-acceptable** because the advertised Studio checkout returns HTTP 404.
+The independent verifier’s only outstanding release blocker, H-1, is a missing Sociobot billing-product registration. The static application already uses the required production checkout URL and its license verification route works; neither production nor pilot has this product enabled. This repair adds an exact, repeatable production billing release gate so this cannot silently ship again. It does not substitute another SKU, hide the advertised paid tier, or alter any free workflow.
 
-## What was verified
+## What changed
 
-- Clean `npm ci` and high-severity audit: passed, 0 vulnerabilities.
-- `npm test`: passed (9 Vitest tests; 14 desktop/390 px Playwright runs).
-- Exact `npm run build`: passed; `dist/` produced. Initial JS is 37,695 B / 12.97 KB gzip and CSS is 17,114 B / 4.43 KB gzip.
-- Local and live desktop plus 390 px normal request flow: share, priced and price-on-ask selections, 999 boundary quantity, review, packet, and CSV export all worked without console/page errors. `1000` was blocked by native max validation and recovered after correction.
-- Live axe scans: 0 serious/critical findings. Skip-link focus, visible 3 px focus outline, Escape dialog close, reduced motion, privacy/terms, local deletion, no horizontal overflow, and local-only normal-flow network traffic were checked.
-- Live worker controls the page; `/sw.js` is `Cache-Control: no-cache`; a saved sheet survived a mobile offline reload with its offline banner. Hashed assets are immutable.
-- All 14 deployable files byte-match the candidate. Live CSP, HSTS, referrer, MIME, and permissions headers are present. Lighthouse supporting report: Performance 98, Accessibility 100, Best Practices 100, SEO 100 (the runner emitted a post-audit Chromium tab-crash warning after writing its report).
+- Added `npm run test:billing-live` (`scripts/verify-billing-live.mjs`). It checks the production catalog for exactly `client-request-quote-sheet`, its expected return URL and ₹999 INR price, requires checkout to redirect to hosted checkout, and confirms the verify endpoint returns the expected invalid-token response shape.
+- Documented that release-only check in `README.md`. It is deliberately separate from offline/local tests because it calls the factory billing service.
+- Kept the original Vite static artifact, production billing URL, local-first storage, free exports, service-worker strategy, responsive design, privacy pages, and all prior passing behavior unchanged.
 
-## Blocking defect
+## Verification evidence
 
-**H-1 — production Studio checkout unavailable.** The production link is correctly rendered as `https://api.sociobot.in/api/v1/products/client-request-quote-sheet/checkout`, but a fresh request returns HTTP 404 with `{"error":"enabled factory product","status":404}`. Buyers therefore cannot purchase the advertised ₹999 upgrade.
-
-## Next step
-
-Factory-side billing registration/enablement for the product slug and return URL is required. Then retest a real checkout redirect and return-license verification on the live site. See `.factory/verification-2.md` for complete evidence and reproduction steps.
-
-## Run locally
+Run in `/work/repo` on 2026-08-28 UTC:
 
 ```sh
 npm ci
 npm audit --audit-level=high
 npm test
 npm run build
+npm run test:billing-live
 ```
+
+- Clean install completed; `npm audit --audit-level=high` reported **0 vulnerabilities**.
+- `npm test` passed: **9** Vitest tests and **14** Playwright tests (7 scenarios in desktop Chromium and 390×844 mobile). This includes keyboard skip focus, Axe serious/critical scans, returned-license cleanup, privacy/terms, exports, and controlled offline reload/update behavior.
+- `npm run build` passed (`tsc --noEmit && vite build`) and produced `dist/`. Entry JS is **37,695 B** (12.97 KB gzip) and CSS is **17,114 B** (4.43 KB gzip), below static-product budgets. There is no separate lint configuration; the build runs the repository’s TypeScript type check.
+- `npm run test:billing-live` intentionally fails now with: `product "client-request-quote-sheet" is not enabled in the billing catalog`. This reproduces the verifier’s H-1 with an executable regression gate rather than allowing a false release pass.
+- Deployed `dist/` through `/opt/fleet/lib/deploy-static.sh client-request-quote-sheet dist`. The live JS SHA-256 exactly matches the local built asset: `be463b92deb6cba7884862be26a142d6ec7b77b4830a0913e1662faabeb0cc3b`.
+- Factory `verify-url.sh` passed on the deployed URL: HTTP **200**, **854 ms** load, no console/page errors, title/lang/one H1/main present, no missing image alt, and no unlabeled buttons.
+- Live Chromium checks passed at desktop and 390 px: skip link focused and moved focus to `main#main`; Axe had **0** serious/critical violations; no console errors or horizontal overflow; normal load used only `https://client-request-quote-sheet.sociobot.in`; the 390 px page had a controlling worker and retained the shell with the offline banner after offline reload/update.
+- Live response policy: `/sw.js` is `Cache-Control: no-cache`; hashed JS/CSS are `public, max-age=31536000, immutable`; CSP restricts scripts/styles to self and billing connections/forms to `https://api.sociobot.in`; HSTS, referrer, MIME, and permissions policies are present.
+- Mobile Lighthouse wrote **100** Performance, **100** Accessibility, **100** Best Practices, **100** SEO (FCP 0.3 s, LCP 0.3 s, TBT 0 ms, CLS 0). The runner emitted a post-audit Chromium-tab-crash warning after writing JSON, so the independent live browser checks above are the primary evidence.
+
+## Remaining release blocker and exact next step
+
+**H-1 remains unresolved externally:**
+
+```text
+GET https://api.sociobot.in/api/v1/products/client-request-quote-sheet/checkout
+→ 404 {"error":"enabled factory product","status":404}
+```
+
+The same slug is absent from `GET https://api.sociobot.in/api/v1/products`; the pilot endpoint also returns the same 404. The verify endpoint returns HTTP 200 with an invalid-token verdict, confirming this is product enablement/checkout registration rather than an app URL, CSP, or license-client defect.
+
+Factory billing must register/enable `client-request-quote-sheet` with return URL `https://client-request-quote-sheet.sociobot.in/`, price `₹999` (`99900` INR minor units), and the hosted Dodo checkout. Then run:
+
+```sh
+npm run test:billing-live
+```
+
+It must pass, followed by an actual checkout and returned-license browser retest on the live site. No payment credentials or provider integration were added to this static repository.
