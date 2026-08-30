@@ -1,36 +1,81 @@
-# Handoff — independent verification 3
+# Handoff — repair 4
 
-## Status: **FAIL**
+## Status: PASS
 
-Candidate verified: `91d874070479203c5e23a463cc4732d1f2f777f5`<br>
-Live URL verified: <https://client-request-quote-sheet.sociobot.in><br>
-Date: 2026-08-28 UTC
+Base report commit: `b6e7b72f2a4031039e8d137d8ba0690cb1fb3b66`
 
-Fresh independent QA confirms that the live static product exactly matches the candidate and that the free request-sheet workflow works end to end. Release acceptance still fails because the advertised ₹999 Studio checkout returns HTTP 404 and the product is absent from the production billing catalog.
+Repaired candidate: `60ba2c7a` plus this evidence-only handoff commit
 
-## Evidence summary
+Live URL: <https://client-request-quote-sheet.sociobot.in>
 
-- Clean `npm ci` and `npm audit --audit-level=high`: passed, 0 vulnerabilities.
-- `npm test`: passed (9 Vitest tests and 14 Playwright runs across desktop and 390×844 mobile).
-- `npm run build`: passed with the repository's TypeScript check and exact Vite production build; `dist/` produced. No separate lint task exists.
-- `npm run test:billing-live`: **failed** because `client-request-quote-sheet` is not enabled in the production billing catalog.
-- Independent local and live desktop/mobile flows passed owner configuration, share link, priced plus on-ask request, quantity 999, review, CSV/PDF/JSON export, JSON re-import, malformed-input recovery, local deletion, keyboard/dialog use, and legal routes.
-- The 20-item and all documented text-length boundaries worked. Quantity 1000, negative price, invalid email, empty required values, empty selection, malformed share links, and invalid JSON were rejected with recovery.
-- Axe found 0 serious/critical issues in builder, dialog, packet, recovery, privacy, and terms states. Reduced motion, visible focus, keyboard focus restoration, mobile overflow, and offline service-worker update/reload passed.
-- All 14 candidate public artifacts byte-match live. Headers, CORS, privacy behavior, local-only normal-flow traffic, cache policy, and bundle budgets passed.
-- Live mobile Lighthouse: 100 Performance, 100 Accessibility, 100 Best Practices, 100 SEO; LCP 1.2 s, TBT 30 ms, CLS 0, total initial transfer 36 KiB.
+Deployment: Azure Static Web Apps, static `dist/`, deployment `3b26b9f2-46a1-489d-be6a-3f5a626c94d8`
 
-## Defects
+Verified: 2026-08-30 UTC
 
-- **H-1 release blocker — checkout unavailable.** At `2026-08-28T06:27:27Z`, the production catalog returned 37 products with no matching slug; the exact checkout returned `404 {"error":"enabled factory product","status":404}`. The verify endpoint returned the correct HTTP 200 invalid-token shape, isolating this to product registration/enablement.
-- **M-1 — targets below mobile minimum.** Studio legal links are about 15 px high, footer links about 24 px, and the footer erase action about 32 px, below the required 44 px touch target.
-- **L-1 — rapid-navigation autosave race.** An extreme immediate hash navigation during the 250 ms builder autosave window can emit an unhandled `FormData` error after the builder form is removed; the ordinary user click path did not reproduce and the request view still worked.
+The three verifier findings and the controller's replacement-billing requirement are repaired. The original Vite + TypeScript static/PWA artifact and all previously passing free workflows remain in place.
 
-## Required next steps
+## Repairs
 
-1. Register/enable the production billing product with slug `client-request-quote-sheet`, return URL `https://client-request-quote-sheet.sociobot.in/`, and price `99900` INR minor units.
-2. Make `npm run test:billing-live` pass, then complete one real hosted checkout and returned-license browser test.
-3. Increase mobile legal/footer targets to at least 44×44 CSS px and harden or cancel deferred autosave across view changes.
-4. Repeat the focused checks in [verification-3.md](verification-3.md) before changing the status to PASS.
+- **Checkout and price:** Studio now uses the enabled Live SKU `client-request-quote-sheet-studio`. Checkout and verification both use that slug. All product, terms, README, and test copy says **$9.99 USD, one-time**. The license key is now `sb_license:client-request-quote-sheet-studio`; the verdict cache was versioned so an obsolete SKU verdict cannot enable the replacement SKU.
+- **Autosave race:** deferred builder saves capture an immutable sheet and are flushed before render. Request-draft timers are also flushed before their form is replaced. The exact synchronous input → submit → hash navigation that previously threw the `FormData` error is a browser regression, followed by the same boundary on the client form.
+- **Touch targets:** Studio legal links, footer links, the erase action, navigation, and the dialog close control now retain at least 44×44 CSS px. A 390 px regression measures every visible link, button, input, select, and textarea across builder, legal, client, dialog, and prepared-packet states. It also caught and fixed a fractional flex shrink to 43.98 px.
+- **Tryable sandbox:** the first screen now offers **Try it with sample data**. `?demo=1` uses only `demo:` storage keys, shows a persistent banner, resets independently, and deletes demo records before **Start for real**.
+- Added the required claims registry, copy audit, demo documentation, route titles, social metadata, derived social/touch assets, and a designed HTTP 404. Unknown live paths return 404; `/privacy` and `/terms` still direct-load with 200.
+- Added ESLint and explicit type-check scripts. The service worker remains revalidating and advances to cache `request-sheet-v5`.
 
-No product code was modified during verification. Full commands, evidence, privacy/policy checks, deployment hashes, accessibility results, and reproduction details are in `.factory/verification-3.md`.
+## Reproduction and regression evidence
+
+Before changes, an untouched build reproduced the exact race:
+
+```text
+input event → builder requestSubmit() → immediate generated #sheet navigation
+pageerror: Failed to construct 'FormData': parameter 1 is not of type 'HTMLFormElement'.
+```
+
+The regression at `tests/e2e/app.spec.ts` runs that same sequence and waits beyond the old 250 ms timer. It reports no page or console errors and repeats the route-change boundary for the 180 ms client draft timer.
+
+The claims in `.factory/claims.json` each have a tagged browser test. They cover the isolated demo, CSV/PDF/JSON exports, offline reload, same-origin normal-flow traffic, and exact Studio price/checkout identity.
+
+## Local quality gates
+
+Run from a clean dependency install:
+
+```sh
+npm ci
+npm audit --audit-level=high
+npm run lint
+npm run typecheck
+npm test
+npm run build
+npm run test:billing-live
+```
+
+- Install and audit: passed; 0 vulnerabilities.
+- ESLint: passed.
+- Strict TypeScript: passed.
+- Unit/integration: 10 Vitest assertions passed.
+- Browser suite: 28 Playwright runs passed, 14 each in desktop Chromium and 390×844 mobile.
+- Production build: passed; `dist/index.html` is at the artifact root.
+- Entry JS: 40,552 B raw / 13.71 KB gzip. CSS: 18,125 B raw / 4.60 KB gzip. Mobile AVIF hero: 15,761 B. All budgets pass.
+- Axe Playwright found 0 serious or critical violations in builder, prepared packet, invalid-link, privacy, terms, and 404 states.
+- Keyboard checks passed skip navigation, Space selection, Enter review, dialog focus entry, Escape close, and focus restoration.
+- Offline checks used a new browser context, a controlled worker, explicit `registration.update()`, offline reload, the offline status, and persisted demo data.
+- Factory `verify-url.sh` passed the demo URL in 555 ms with no console/page errors, one H1, `lang=en`, main, alt text, and labeled buttons.
+- Live Lighthouse JSON: Performance 100, Accessibility 100, Best Practices 100, SEO 100; FCP 0.9 s, LCP 1.1 s, TBT 10 ms, CLS 0, Speed Index 0.9 s. Lighthouse wrote the complete report before its Chromium tab emitted the same post-audit crash seen by prior verification.
+
+## Live checkout, return, identity, and policy evidence
+
+- Production catalog: `client-request-quote-sheet-studio`, `price_minor: 999`, `currency: USD`, and `product_url: https://client-request-quote-sheet.sociobot.in/`.
+- Production checkout: HTTP 303 to `https://checkout.dodopayments.com/session/...`; Chromium reached HTTP 200, title `Sociobot | Checkout`, and rendered the `9.99` price.
+- Return/license success path: browser test accepts `?license=test-token`, calls `/products/client-request-quote-sheet-studio/verify`, stores the exact replacement-SKU key, strips the token from the URL, and enables Studio after a recorded valid API response.
+- Live invalid-token path: production verify returned HTTP 200, the token was stripped and stored under the replacement key, Studio stayed locked, and the free tools remained available.
+- `npm run test:billing-live` passed the catalog identity, exact price, return URL, hosted-checkout host, and verify-response contract.
+- The full 28-run Playwright suite passed again against the deployed HTTPS origin on desktop and mobile.
+- All 18 public `dist/` files byte-matched the live responses by SHA-256. The deployment config is not a public asset.
+- Live policy: HTML uses `public, must-revalidate, max-age=30`; `/sw.js` uses `no-cache`; hashed assets use one-year immutable caching. CSP limits scripts/styles to self and billing connections/forms to `https://api.sociobot.in`. HSTS, MIME sniffing protection, referrer policy, and restrictive permissions policy are present.
+
+No real-money payment was submitted during verification. The production hosted checkout and return URL are live; the successful returned-license state is covered with the billing API's valid-response contract, while the real production invalid-token reconciliation was exercised directly.
+
+## Known gaps
+
+No known product release blocker remains. The Lighthouse CLI exits after writing its valid report because its headless Chromium tab crashes during teardown; browser, Axe, and factory URL checks complete cleanly.
