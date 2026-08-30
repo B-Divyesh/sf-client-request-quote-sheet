@@ -1,7 +1,8 @@
-const CACHE = 'request-sheet-v4';
+const CACHE = 'request-sheet-v5';
 const SHELL = [
   '/',
   '/favicon.svg',
+  '/apple-touch-icon.png',
   '/manifest.webmanifest',
   '/assets/request-docket-hero-960.avif',
   '/assets/request-docket-hero-960.webp',
@@ -16,7 +17,7 @@ self.addEventListener('install', (event) => {
     await cache.addAll(SHELL);
     const documentResponse = await cache.match('/');
     const html = await documentResponse.text();
-    const buildAssets = [...html.matchAll(/(?:src|href)="(\/assets\/[^\"]+\.(?:js|css))"/g)].map((match) => match[1]);
+    const buildAssets = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+\.(?:js|css))"/g)].map((match) => match[1]);
     await cache.addAll(buildAssets);
     await self.skipWaiting();
   })());

@@ -1,10 +1,18 @@
+export function isDemoMode(): boolean {
+  return typeof location !== 'undefined' && new URLSearchParams(location.search).get('demo') === '1';
+}
+
+function activeKey(key: string): string {
+  return isDemoMode() ? `demo:${key}` : key;
+}
+
 export const STORAGE = {
-  sheet: 'request-sheet:builder:v1',
-  lastRequest: 'request-sheet:last-request:v1',
-  draftPrefix: 'request-sheet:draft:',
-  license: 'sb_license:client-request-quote-sheet',
-  licenseVerdict: 'request-sheet:license-verdict:v1',
-} as const;
+  get sheet(): string { return activeKey('request-sheet:builder:v1'); },
+  get lastRequest(): string { return activeKey('request-sheet:last-request:v1'); },
+  get draftPrefix(): string { return activeKey('request-sheet:draft:'); },
+  get license(): string { return activeKey('sb_license:client-request-quote-sheet-studio'); },
+  get licenseVerdict(): string { return activeKey('request-sheet:studio-license-verdict:v2'); },
+};
 
 export function readJson<T>(key: string, fallback: T): T {
   try {
@@ -25,8 +33,13 @@ export function writeJson(key: string, value: unknown): boolean {
 }
 
 export function clearProductData(keepLicense = true): number {
-  const keys = Object.keys(localStorage).filter((key) => key.startsWith('request-sheet:'));
-  if (!keepLicense) keys.push(STORAGE.license);
-  keys.forEach((key) => localStorage.removeItem(key));
-  return keys.length;
+  const dataPrefix = isDemoMode() ? 'demo:request-sheet:' : 'request-sheet:';
+  const keys = Object.keys(localStorage).filter((key) => key.startsWith(dataPrefix));
+  if (!keepLicense) {
+    if (localStorage.getItem(STORAGE.license) !== null) keys.push(STORAGE.license);
+    if (!isDemoMode() && localStorage.getItem('sb_license:client-request-quote-sheet') !== null) keys.push('sb_license:client-request-quote-sheet');
+  }
+  const uniqueKeys = [...new Set(keys)];
+  uniqueKeys.forEach((key) => localStorage.removeItem(key));
+  return uniqueKeys.length;
 }

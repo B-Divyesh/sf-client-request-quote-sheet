@@ -1,0 +1,37 @@
+[
+  {
+    "id": "demo-sandbox",
+    "claim": "Try realistic sample data without changing the real workspace",
+    "where": "landing action, demo banner, README",
+    "test": "npm run test:e2e -- --grep @claim:demo-sandbox --project=chromium",
+    "sandbox": "fresh browser context; save real data, enter demo in one click, edit/reset/exit, and prove namespace isolation"
+  },
+  {
+    "id": "packet-exports",
+    "claim": "Exports a prepared request as CSV, PDF, and JSON",
+    "where": "product flow, Studio free-tier copy, README",
+    "test": "npm run test:e2e -- --grep @claim:packet-exports --project=chromium",
+    "sandbox": "sample request; assert CSV content, PDF signature, and JSON packet structure"
+  },
+  {
+    "id": "offline-reload",
+    "claim": "Saved sheets and exports work offline after the first visit",
+    "where": "offline banner, README",
+    "test": "npm run test:e2e -- --grep @claim:offline-reload --project=chromium",
+    "sandbox": "new browser context at ?demo=1; wait for service-worker control, go offline, reload, and assert saved sample data"
+  },
+  {
+    "id": "local-only",
+    "claim": "Normal sheet and request work stays on the device",
+    "where": "landing facts, compose copy, privacy page, README",
+    "test": "npm run test:e2e -- --grep @claim:local-only --project=chromium",
+    "sandbox": "fresh ?demo=1 flow; record all requests through packet preparation and assert only the site origin"
+  },
+  {
+    "id": "studio-price",
+    "claim": "Studio is a $9.99 USD one-time purchase through hosted checkout",
+    "where": "Studio section, terms, README",
+    "test": "npm run test:e2e -- --grep @claim:studio-price --project=chromium && npm run test:billing-live",
+    "sandbox": "assert exact page copy and SKU URL; then confirm catalog price, return URL, hosted-checkout redirect, and verify response live"
+  }
+]

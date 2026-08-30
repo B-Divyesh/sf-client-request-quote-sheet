@@ -60,4 +60,6 @@ Generate with `/opt/fleet/lib/gen-image.sh` at 1536×1024, review visually, reta
 ## Provenance
 
 - `assets/src/request-docket-hero.png`: original AI-generated image using the factory Azure image deployment (`factory-image`), generated 2026-08-28 from the prompt above. No reference images, people, brands, or copyrighted characters. Use licensed for this product; disclosed in the site footer.
+- `public/social-card.jpg`: 1200×630 center crop derived locally from the original request-docket hero on 2026-08-30; no new source material.
+- `public/apple-touch-icon.png`: 180×180 raster derived locally from the hand-authored product favicon on 2026-08-30.
 - Interface icons are hand-authored inline SVG strokes following the same docket/rule vocabulary; they are functional, not decorative.

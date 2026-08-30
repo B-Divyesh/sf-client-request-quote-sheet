@@ -5,14 +5,15 @@
  * outside `npm test`: local product work must remain possible when the
  * factory billing service is unavailable. Run it before a paid release.
  */
-const product = 'client-request-quote-sheet';
+const claim = '@claim:studio-price';
+const product = 'client-request-quote-sheet-studio';
 const billingBaseUrl = (process.env.BILLING_BASE_URL || 'https://api.sociobot.in').replace(/\/$/, '');
 const productUrl = process.env.BILLING_PRODUCT_URL || 'https://client-request-quote-sheet.sociobot.in/';
 const checkoutUrl = `${billingBaseUrl}/api/v1/products/${product}/checkout`;
 const verifyUrl = `${billingBaseUrl}/api/v1/products/${product}/verify?license=release-contract-probe`;
 
 function fail(message) {
-  process.stderr.write(`Billing release check failed: ${message}\n`);
+  process.stderr.write(`${claim} billing release check failed: ${message}\n`);
   process.exitCode = 1;
 }
 
@@ -56,8 +57,8 @@ if (registeredProduct.checkout_url !== checkoutUrl) {
 if (registeredProduct.product_url !== productUrl) {
   fail(`catalog return URL is ${JSON.stringify(registeredProduct.product_url)}, expected ${productUrl}`);
 }
-if (registeredProduct.currency !== 'INR' || registeredProduct.price_minor !== 99_900) {
-  fail(`catalog price is ${registeredProduct.price_minor} ${registeredProduct.currency}, expected 99900 INR for the advertised ₹999 unlock`);
+if (registeredProduct.currency !== 'USD' || registeredProduct.price_minor !== 999) {
+  fail(`catalog price is ${registeredProduct.price_minor} ${registeredProduct.currency}, expected 999 USD minor units for the advertised $9.99 unlock`);
 }
 
 const checkoutResponse = await request(checkoutUrl, { redirect: 'manual' });
@@ -66,6 +67,11 @@ if (checkoutResponse.status < 300 || checkoutResponse.status > 399) {
   fail(`checkout returned HTTP ${checkoutResponse.status}; expected a redirect to hosted checkout`);
 } else if (!checkoutResponse.headers.get('location')) {
   fail('checkout redirect did not include a Location header');
+} else {
+  const hostedCheckout = new URL(checkoutResponse.headers.get('location'));
+  if (hostedCheckout.protocol !== 'https:' || hostedCheckout.hostname !== 'checkout.dodopayments.com') {
+    fail(`checkout redirected to unexpected host ${hostedCheckout.origin}`);
+  }
 }
 
 const verifyResponse = await request(verifyUrl, { headers: { Accept: 'application/json' } });
@@ -82,4 +88,4 @@ if (!verifyResponse.ok) {
 }
 
 if (process.exitCode) process.exit();
-process.stdout.write(`Billing release check passed for ${product}. Checkout redirected and license verification is available.\n`);
+process.stdout.write(`${claim} billing release check passed for ${product}. Checkout redirected and license verification is available.\n`);

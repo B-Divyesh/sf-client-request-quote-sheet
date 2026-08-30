@@ -3,12 +3,14 @@ import { currencies, defaultSheet } from './defaults';
 import { decodeSheet, encodeSheet, isRequestPacket } from './encoding';
 import { downloadBlob, formatMoney, packetSummary, packetToCsv, packetToPdf, packetTotal } from './exports';
 import { checkoutUrl, initialLicense, storeLicense, verifyLicense, type LicenseState } from './license';
-import { clearProductData, readJson, STORAGE, writeJson } from './storage';
+import { clearProductData, isDemoMode, readJson, STORAGE, writeJson } from './storage';
 import type { ClientRequest, RequestPacket, RequestSheet, SheetItem } from './types';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
+const demoMode = isDemoMode();
 let license: LicenseState = initialLicense();
-let activePacket: RequestPacket | null = null;
+let pendingBuilderSave: { sheet: RequestSheet; timer: number } | null = null;
+let pendingRequestUpdate: { run: () => void; timer: number } | null = null;
 
 function escapeHtml(value: unknown): string {
   return String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]!);
@@ -28,20 +30,25 @@ function icon(name: 'arrow' | 'plus' | 'minus' | 'copy' | 'download' | 'check'):
 
 function shell(content: string, section = ''): string {
   const offline = navigator.onLine ? '' : '<div class="network-banner" role="status">Offline — your saved sheet and exports still work on this device.</div>';
-  return `${offline}
+  const demo = demoMode ? '<aside class="demo-banner" aria-label="Demo mode"><strong>Demo — sample data, nothing is saved to your real sheet.</strong><span><button type="button" data-action="reset-demo">Reset demo</button><button type="button" data-action="leave-demo">Start for real</button></span></aside>' : '';
+  const homeUrl = demoMode ? '/?demo=1' : '/';
+  const privacyUrl = demoMode ? '/privacy?demo=1' : '/privacy';
+  const termsUrl = demoMode ? '/terms?demo=1' : '/terms';
+  return `${offline}${demo}
     <header class="site-header">
-      <a class="wordmark" href="/"><span aria-hidden="true">RS/</span> Request Sheet</a>
+      <a class="wordmark" href="${homeUrl}"><span aria-hidden="true">RS/</span> Request Sheet</a>
       <nav aria-label="Primary">
-        <a ${section === 'build' ? 'aria-current="page"' : ''} href="/">Build a sheet</a>
-        <a ${section === 'privacy' ? 'aria-current="page"' : ''} href="/privacy">Privacy</a>
-        <a href="#studio">Studio <span class="edition-mark">+</span></a>
+        <a ${section === 'build' && !demoMode ? 'aria-current="page"' : ''} href="${homeUrl}">Build a sheet</a>
+        <a ${demoMode && section !== 'privacy' ? 'aria-current="page"' : ''} href="/?demo=1">Demo</a>
+        <a ${section === 'privacy' ? 'aria-current="page"' : ''} href="${privacyUrl}">Privacy</a>
+        <a href="${homeUrl}#studio">Studio <span class="edition-mark">+</span></a>
       </nav>
     </header>
     <main id="main" tabindex="-1">${content}</main>
     <footer class="site-footer">
-      <div><strong>Request Sheet</strong><p>A quiet handoff between a client request and a human quote.</p></div>
-      <div><a href="/privacy">Privacy</a><a href="/terms">Terms</a><button class="link-button" data-action="clear-data">Erase local data</button></div>
-      <p class="provenance">No analytics. No accounts. Editorial image generated for this product with the factory image model.</p>
+      <div><strong>Request Sheet</strong><p>Build and export quote requests without an account.</p></div>
+      <div><a href="${privacyUrl}">Privacy</a><a href="${termsUrl}">Terms</a><button class="link-button" data-action="clear-data">Erase local data</button></div>
+      <p class="provenance">No analytics. No accounts. Editorial image generated for this product with the factory image model. Version 1.0.1 · repair 4.</p>
     </footer>
     <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>`;
 }
@@ -76,10 +83,11 @@ function builderPage(): string {
   return shell(`
     <section class="hero">
       <div class="hero-copy">
-        <p class="kicker">Issue № 01 · Client requests</p>
+        <p class="kicker">Client request builder</p>
         <h1>A request sheet,<br><em>not a storefront.</em></h1>
-        <p class="dek">Give repeat clients one focused place to mark what they need. You keep the human decision: every selection becomes a quote draft, never an order.</p>
-        <a class="button primary" href="#compose">Build your sheet ${icon('arrow')}</a>
+        <p class="dek">Give repeat clients one focused place to mark what they need. Every selection becomes a quote draft, never an order.</p>
+        <div class="hero-actions"><a class="button primary" href="/?demo=1#compose">Try it with sample data ${icon('arrow')}</a><a class="button secondary" href="#compose">Build your own sheet</a></div>
+        <p class="action-note">The sample opens a filled service list you can edit.</p>
       </div>
       <figure class="hero-plate">
         <picture>
@@ -90,12 +98,12 @@ function builderPage(): string {
         <figcaption>Request → review → quote. No checkout in between.</figcaption>
       </figure>
     </section>
-    <section class="principles" aria-label="Product principles">
-      <p><span>01</span> Share by link</p><p><span>02</span> Keep data local</p><p><span>03</span> Export a clean draft</p>
+    <section class="principles" aria-label="Product facts">
+      <p><span>01</span> Your entries stay local</p><p><span>02</span> Works offline after one visit</p><p><span>03</span> Studio costs $9.99 once</p>
     </section>
     <section class="compose" id="compose">
-      <div class="section-lead"><p class="folio">Set the terms</p><h2>Compose the sheet</h2><p>Start with the example, then make it yours. Your catalogue is encoded in the link—nothing is published to our servers.</p></div>
-      <form id="builder-form" novalidate>
+      <div class="section-lead"><p class="folio">Set the terms</p><h2>Compose the sheet</h2><p>Start with the example, then make it yours. Your item list is encoded in the link—nothing is published to our servers.</p></div>
+      <form id="builder-form" novalidate aria-describedby="builder-error">
         <div class="form-grid">
           <div class="field"><label for="business-name">Business name</label><input id="business-name" name="businessName" maxlength="80" value="${escapeHtml(sheet.businessName)}" required></div>
           <div class="field"><label for="quote-email">Quote email</label><input id="quote-email" name="email" maxlength="160" type="email" value="${escapeHtml(sheet.email)}" aria-describedby="email-hint"><small id="email-hint">Used only to prepare the client’s email.</small></div>
@@ -112,13 +120,13 @@ function builderPage(): string {
       <section id="share-result" class="result-sheet" hidden aria-live="polite"></section>
     </section>
     <section class="packet-reader">
-      <div class="section-lead"><p class="folio">On the owner’s desk</p><h2>Open a request packet</h2><p>A client can send the small JSON packet they downloaded. Open it here to inspect the request and export CSV or PDF again.</p></div>
-      <label class="file-drop" for="packet-file"><span>Choose a request packet</span><small>JSON · read only in this browser</small><input id="packet-file" type="file" accept="application/json,.json"></label>
+      <div class="section-lead"><p class="folio">Request packet import</p><h2>Open a request packet</h2><p>A client can send the small JSON packet they downloaded. Open it here to inspect the request and export CSV or PDF again.</p></div>
+      <label class="file-drop" for="packet-file"><span>Choose a request packet</span><small>JSON · read only in this browser</small><input id="packet-file" type="file" accept="application/json,.json" aria-describedby="packet-error"></label>
       <p class="form-error" id="packet-error" role="alert"></p>
       <div id="import-result"></div>
     </section>
     <section class="studio" id="studio">
-      <div class="studio-title"><p class="kicker">Studio edition</p><h2>Put your name on every handoff.</h2><p>₹999 one-time. Remove Request Sheet credit, add your closing line, and collect a client reference. Core sharing, CSV, PDF and JSON exports stay free.</p><a class="button studio-buy" href="${checkoutUrl}">Buy Studio once ${icon('arrow')}</a></div>
+      <div class="studio-title"><p class="kicker">Studio edition</p><h2>Add details to each request.</h2><p>$9.99 USD, one-time. Remove Request Sheet credit, add your closing line, and collect a client reference. Core sharing, CSV, PDF and JSON exports stay free.</p><a class="button studio-buy" href="${checkoutUrl}">Buy Studio for $9.99 ${icon('arrow')}</a></div>
       <div class="studio-controls">
         <div class="studio-status"><span class="stamp ${license.valid ? 'active' : ''}">${license.valid ? 'Licensed' : 'Optional'}</span><p>${license.valid ? 'Studio presentation controls are active.' : 'A license unlocks presentation controls on this device.'}</p></div>
         ${licenseNotice}
@@ -126,15 +134,15 @@ function builderPage(): string {
         <div class="field"><label for="reference-label">Client reference label</label><input id="reference-label" maxlength="60" value="${escapeHtml(sheet.referenceLabel || '')}" ${premiumDisabled}></div>
         <label class="check-field"><input id="hide-credit" type="checkbox" ${sheet.hideCredit ? 'checked' : ''} ${premiumDisabled}><span>Remove “Made with Request Sheet” credit</span></label>
         <form id="license-form" class="license-form"><label for="license-token">Have a license? Paste it here</label><div><input id="license-token" autocomplete="off" spellcheck="false" value="${escapeHtml(license.token)}"><button class="button secondary" type="submit">Verify license</button></div></form>
-        <p class="legal-note">Sociobot/Dodo is the merchant of record. A refund revokes the license. See <a href="/terms">terms</a> and <a href="/privacy">privacy</a>.</p>
+        <p class="legal-note">Sociobot/Dodo is the merchant of record. A refund revokes the license. See <a href="${demoMode ? '/terms?demo=1' : '/terms'}">terms</a> and <a href="${demoMode ? '/privacy?demo=1' : '/privacy'}">privacy</a>.</p>
       </div>
     </section>`, 'build');
 }
 
-function collectBuilderSheet(): RequestSheet {
-  const form = document.querySelector<HTMLFormElement>('#builder-form')!;
+function collectBuilderSheet(form = document.querySelector<HTMLFormElement>('#builder-form')): RequestSheet {
+  if (!form) throw new Error('Builder form is unavailable');
   const data = new FormData(form);
-  const items = [...document.querySelectorAll<HTMLElement>('.item-editor')].map((row, index) => {
+  const items = [...form.querySelectorAll<HTMLElement>('.item-editor')].map((row, index) => {
     const value = (name: string) => row.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[name="${name}"]`)?.value.trim() || '';
     const rawPrice = value('itemPrice');
     return { id: row.dataset.itemId || `item-${index}`, name: value('itemName'), description: value('itemDescription'), unit: value('itemUnit') || 'item', price: rawPrice === '' ? null : Math.max(0, Number(rawPrice)) };
@@ -154,10 +162,38 @@ function collectBuilderSheet(): RequestSheet {
   };
 }
 
-function saveBuilder(): void {
-  const saved = writeJson(STORAGE.sheet, collectBuilderSheet());
+function persistBuilderSheet(sheet: RequestSheet): boolean {
+  const saved = writeJson(STORAGE.sheet, sheet);
   const status = document.querySelector('#save-status');
   if (status) status.textContent = saved ? 'Saved on this device' : 'Could not save — storage may be full';
+  return saved;
+}
+
+function flushPendingBuilderSave(): void {
+  if (!pendingBuilderSave) return;
+  window.clearTimeout(pendingBuilderSave.timer);
+  const { sheet } = pendingBuilderSave;
+  pendingBuilderSave = null;
+  persistBuilderSheet(sheet);
+}
+
+function saveBuilder(): boolean {
+  if (pendingBuilderSave) {
+    window.clearTimeout(pendingBuilderSave.timer);
+    pendingBuilderSave = null;
+  }
+  const form = document.querySelector<HTMLFormElement>('#builder-form');
+  return form ? persistBuilderSheet(collectBuilderSheet(form)) : false;
+}
+
+function scheduleBuilderSave(form: HTMLFormElement): void {
+  const sheet = collectBuilderSheet(form);
+  if (pendingBuilderSave) window.clearTimeout(pendingBuilderSave.timer);
+  const timer = window.setTimeout(() => {
+    pendingBuilderSave = null;
+    persistBuilderSheet(sheet);
+  }, 250);
+  pendingBuilderSave = { sheet, timer };
 }
 
 function packetPanel(packet: RequestPacket, imported = false): string {
@@ -187,8 +223,7 @@ function bindPacketActions(container: ParentNode, packet: RequestPacket): void {
 
 function bindBuilder(): void {
   const form = document.querySelector<HTMLFormElement>('#builder-form')!;
-  let saveTimer = 0;
-  form.addEventListener('input', () => { clearTimeout(saveTimer); saveTimer = window.setTimeout(saveBuilder, 250); });
+  form.addEventListener('input', () => scheduleBuilderSave(form));
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     const error = document.querySelector<HTMLParagraphElement>('#builder-error')!;
@@ -197,7 +232,7 @@ function bindBuilder(): void {
     const sheet = collectBuilderSheet();
     if (!sheet.items.some((item) => item.name)) { error.textContent = 'Add at least one named item before creating a link.'; return; }
     saveBuilder();
-    const url = `${location.origin}${location.pathname}#sheet=${encodeSheet(sheet)}`;
+    const url = `${location.origin}${location.pathname}${demoMode ? '?demo=1' : ''}#sheet=${encodeSheet(sheet)}`;
     const result = document.querySelector<HTMLElement>('#share-result')!;
     result.hidden = false;
     result.innerHTML = `<p class="folio">Link ready</p><h3>Your sheet stays inside this link</h3><p>Send it only to people you expect requests from. Anyone with the link can view its item list.</p><label for="share-url">Share URL</label><textarea id="share-url" readonly rows="3">${escapeHtml(url)}</textarea><div class="packet-actions"><button class="button secondary" type="button" data-action="copy-link">${icon('copy')} Copy link</button><a class="button primary" href="${escapeHtml(url)}">Open client view ${icon('arrow')}</a></div>`;
@@ -243,7 +278,6 @@ function bindBuilder(): void {
       if (input.files[0].size > 250_000) throw new Error('too-large');
       const value = JSON.parse(await input.files[0].text()) as unknown;
       if (!isRequestPacket(value)) throw new Error('invalid');
-      activePacket = value;
       const result = document.querySelector<HTMLDivElement>('#import-result')!;
       result.innerHTML = packetPanel(value, true);
       bindPacketActions(result, value);
@@ -277,7 +311,7 @@ function requestPage(sheet: RequestSheet, encoded: string): string {
   return shell(`<article class="request-view">
     <header class="request-masthead"><div><p class="kicker">Prepared request sheet</p><h1>${escapeHtml(sheet.businessName)}</h1></div><div class="request-folio"><span>Sheet</span><strong>01</strong><small>Human review required</small></div></header>
     <section class="request-intro"><p class="folio">${escapeHtml(sheet.heading)}</p><p class="dek">${escapeHtml(sheet.intro)}</p><aside><strong>Before you mark the sheet</strong><p>${escapeHtml(sheet.validityNote)}</p></aside></section>
-    <form id="request-form" novalidate>
+      <form id="request-form" novalidate aria-describedby="request-error">
       <fieldset class="request-ledger"><legend><span>Available work</span><small>Select one or more</small></legend><ol>${rows}</ol></fieldset>
       <section class="running-total" aria-live="polite"><div><span>Priced-line estimate</span><strong id="estimate">${formatMoney(0, sheet.currency)}</strong></div><p id="estimate-note">No items selected. Prices and availability remain subject to review.</p></section>
       <section class="client-details"><div class="section-lead"><p class="folio">Your details</p><h2>Give the request context</h2></div><div class="form-grid">
@@ -346,9 +380,18 @@ function makePacket(sheet: RequestSheet, draft: RequestDraft): RequestPacket {
 
 function bindRequest(sheet: RequestSheet, encoded: string): void {
   const form = document.querySelector<HTMLFormElement>('#request-form')!;
-  let saveTimer = 0;
-  form.addEventListener('input', () => { clearTimeout(saveTimer); saveTimer = window.setTimeout(() => updateEstimate(sheet, encoded), 180); });
-  form.addEventListener('change', () => updateEstimate(sheet, encoded));
+  const updateNow = (): void => {
+    if (pendingRequestUpdate) window.clearTimeout(pendingRequestUpdate.timer);
+    pendingRequestUpdate = null;
+    if (form.isConnected) updateEstimate(sheet, encoded);
+  };
+  form.addEventListener('input', () => {
+    if (pendingRequestUpdate) window.clearTimeout(pendingRequestUpdate.timer);
+    const run = updateNow;
+    const timer = window.setTimeout(run, 180);
+    pendingRequestUpdate = { run, timer };
+  });
+  form.addEventListener('change', updateNow);
   document.querySelectorAll<HTMLInputElement>('[data-select]').forEach((checkbox) => checkbox.addEventListener('change', () => {
     const input = document.querySelector<HTMLInputElement>(`[data-quantity-input="${CSS.escape(checkbox.dataset.select!)}"]`)!;
     input.value = checkbox.checked ? String(Math.max(1, Number(input.value) || 1)) : '0';
@@ -362,6 +405,8 @@ function bindRequest(sheet: RequestSheet, encoded: string): void {
   }));
   form.addEventListener('submit', (event) => {
     event.preventDefault();
+    if (pendingRequestUpdate) window.clearTimeout(pendingRequestUpdate.timer);
+    pendingRequestUpdate = null;
     const error = document.querySelector<HTMLParagraphElement>('#request-error')!;
     error.textContent = '';
     const draft = readRequestDraft(sheet, encoded);
@@ -373,7 +418,6 @@ function bindRequest(sheet: RequestSheet, encoded: string): void {
     dialog.querySelector('#review-content')!.innerHTML = `<div class="dialog-head"><div><p class="folio">Final check</p><h2 id="review-title">Review your request</h2></div><button class="dialog-close" type="button" aria-label="Close review">×</button></div><p>${preview.request.lines.length} line${preview.request.lines.length === 1 ? '' : 's'} for <strong>${escapeHtml(sheet.businessName)}</strong></p><ol class="packet-lines">${preview.request.lines.map((line) => `<li><span>${line.quantity} × ${escapeHtml(line.name)}</span><strong>${line.price === null ? 'On ask' : escapeHtml(formatMoney(line.price * line.quantity, sheet.currency))}</strong></li>`).join('')}</ol><p class="review-total"><span>Priced-line estimate</span><strong>${escapeHtml(formatMoney(total, sheet.currency))}</strong></p><div class="notice-box"><strong>Still a request</strong><p>The business must confirm scope, timing, availability and final price.</p></div><div class="dialog-actions"><button class="button secondary dialog-back" type="button">Go back</button><button class="button primary" id="prepare-packet" type="button">Prepare request packet ${icon('arrow')}</button></div>`;
     dialog.querySelectorAll('.dialog-close,.dialog-back').forEach((button) => button.addEventListener('click', () => dialog.close()));
     dialog.querySelector('#prepare-packet')?.addEventListener('click', () => {
-      activePacket = preview;
       writeJson(STORAGE.lastRequest, preview);
       const result = document.querySelector<HTMLDivElement>('#packet-result')!;
       result.innerHTML = packetPanel(preview);
@@ -390,12 +434,16 @@ function invalidSheetPage(): string {
   return shell(`<section class="state-page"><p class="kicker">Link cannot be read</p><h1>This request sheet is incomplete.</h1><p>The link may have been copied only in part. Ask the business to send it again, or build a fresh sheet.</p><a class="button primary" href="/">Build a new sheet ${icon('arrow')}</a></section>`);
 }
 
+function notFoundPage(): string {
+  return shell(`<section class="state-page"><p class="kicker">Page not found</p><h1>This page is not on the sheet.</h1><p>Check the address or return to the request-sheet builder.</p><a class="button primary" href="/">Build a request sheet ${icon('arrow')}</a></section>`);
+}
+
 function privacyPage(): string {
-  return shell(`<article class="legal-page"><p class="kicker">Plain-language policy · 28 August 2026</p><h1>Your request stays on your device.</h1><p class="dek">Request Sheet has no accounts, analytics or application database. The site itself does not receive the catalogue, contact details or requirements you enter.</p><h2>What is stored</h2><p>Your sheet, unfinished request, last request packet, and license verdict are saved in this browser’s local storage. A shared URL contains the owner’s catalogue configuration. Client contact details are never put in that URL.</p><h2>What leaves the device</h2><p>Nothing leaves until you choose an action. Copy, download and email actions put the request under your control. Email opens your own mail app. License verification sends only the pasted license token to the Sociobot billing API. The generated hero image and application files are served from this site; there are no third-party fonts or scripts.</p><h2>Deletion and retention</h2><p>Use “Erase local data” below or in the footer at any time. Downloaded files and sent messages must be removed where you saved or sent them. The license token is retained by default so a customer does not lose their purchase; the deletion dialog offers to remove it too.</p><button class="button danger-button" data-action="clear-data">Erase data on this device</button><h2>Contact</h2><p>Privacy questions: <a href="mailto:privacy@sociobot.in">privacy@sociobot.in</a>.</p></article>`, 'privacy');
+  return shell(`<article class="legal-page"><p class="kicker">Plain-language policy · 30 August 2026</p><h1>Your request stays on your device.</h1><p class="dek">Request Sheet has no accounts, analytics or application database. The site itself does not receive the item list, contact details or requirements you enter.</p><h2>What is stored</h2><p>Your sheet, unfinished request, last request packet, and license verdict are saved in this browser’s local storage. A shared URL contains the owner’s item-list configuration. Client contact details are never put in that URL.</p><h2>What leaves the device</h2><p>Your entries stay on the device until you choose an action. Copy, download and email actions put the request under your control. Email opens your own mail app. License verification sends only the pasted license token to the Sociobot billing API. The generated hero image and application files are served from this site; there are no third-party fonts or scripts.</p><h2>Deletion and retention</h2><p>Use “Erase local data” below or in the footer at any time. Downloaded files and sent messages must be removed where you saved or sent them. The license token is retained by default so a customer does not lose their purchase; the deletion dialog offers to remove it too.</p><button class="button danger-button" data-action="clear-data">Erase data on this device</button><h2>Contact</h2><p>Privacy questions: <a href="mailto:privacy@sociobot.in">privacy@sociobot.in</a>.</p></article>`, 'privacy');
 }
 
 function termsPage(): string {
-  return shell(`<article class="legal-page"><p class="kicker">Terms · 28 August 2026</p><h1>A draft is not an order.</h1><p class="dek">Request Sheet helps one person describe requested work to another. It does not create a binding quote, reserve stock, accept an order, collect payment, or guarantee availability.</p><h2>Using the product</h2><p>You are responsible for checking every exported request and formal quote. Do not use the product for unlawful, dangerous or sensitive-data workflows. Shared links should go only to intended recipients because anyone holding a link can view its catalogue.</p><h2>Studio license</h2><p>Studio is ₹999 as a one-time purchase and unlocks presentation controls listed on the product page. Core sharing and exports remain free. Sociobot/Dodo is the merchant of record and handles checkout and refunds. A refunded, expired or revoked license stops unlocking Studio features but does not affect free features or local request data.</p><h2>Availability and warranty</h2><p>The software is provided “as is” under the MIT License. Keep copies of files you need. Browser storage can be cleared by your device or browser. We may improve or discontinue the hosted service, while the source remains usable under its license.</p><h2>Contact</h2><p>Terms questions: <a href="mailto:support@sociobot.in">support@sociobot.in</a>.</p></article>`);
+  return shell(`<article class="legal-page"><p class="kicker">Terms · 30 August 2026</p><h1>A draft is not an order.</h1><p class="dek">Request Sheet helps one person describe requested work to another. It does not create a binding quote, reserve stock, accept an order, collect payment, or guarantee availability.</p><h2>Using the product</h2><p>You are responsible for checking every exported request and formal quote. Do not use the product for unlawful, dangerous or sensitive-data workflows. Shared links should go only to intended recipients because anyone holding a link can view its item list.</p><h2>Studio license</h2><p>Studio costs $9.99 USD as a one-time purchase. It adds the presentation controls listed on the product page. Core sharing and exports remain free. Sociobot/Dodo is the merchant of record and handles checkout and refunds. A refunded, expired or revoked license stops enabling Studio features but does not affect free features or local request data.</p><h2>Availability and warranty</h2><p>The software is provided “as is” under the MIT License. Keep copies of files you need. Browser storage can be cleared by your device or browser. We may improve or discontinue the hosted service, while the source remains usable under its license.</p><h2>Contact</h2><p>Terms questions: <a href="mailto:support@sociobot.in">support@sociobot.in</a>.</p></article>`);
 }
 
 function bindGlobal(): void {
@@ -405,25 +453,56 @@ function bindGlobal(): void {
     showToast(`${count} local record${count === 1 ? '' : 's'} erased${includeLicense ? ', including the license' : ''}.`);
     if (location.pathname === '/') window.setTimeout(render, 400);
   }));
+  document.querySelector('[data-action="reset-demo"]')?.addEventListener('click', () => {
+    clearProductData(false);
+    history.replaceState(null, '', '/?demo=1#compose');
+    render();
+    showToast('Demo reset to the sample sheet.');
+  });
+  document.querySelector('[data-action="leave-demo"]')?.addEventListener('click', () => {
+    clearProductData(false);
+    location.assign('/');
+  });
 }
 
 function render(): void {
-  activePacket = null;
-  if (location.pathname === '/privacy' || location.pathname === '/privacy/') app.innerHTML = privacyPage();
-  else if (location.pathname === '/terms' || location.pathname === '/terms/') app.innerHTML = termsPage();
-  else {
+  flushPendingBuilderSave();
+  if (pendingRequestUpdate) {
+    window.clearTimeout(pendingRequestUpdate.timer);
+    const { run } = pendingRequestUpdate;
+    pendingRequestUpdate = null;
+    run();
+  }
+  if (location.pathname === '/privacy' || location.pathname === '/privacy/') {
+    document.title = 'Privacy — Request Sheet';
+    app.innerHTML = privacyPage();
+  }
+  else if (location.pathname === '/terms' || location.pathname === '/terms/') {
+    document.title = 'Terms — Request Sheet';
+    app.innerHTML = termsPage();
+  }
+  else if (location.pathname === '/' || location.pathname === '') {
     const match = location.hash.match(/^#sheet=(.+)$/);
     if (match) {
       try {
         const encoded = match[1]!;
         const sheet = decodeSheet(encoded);
+        document.title = `Request for ${sheet.businessName} — Request Sheet`;
         app.innerHTML = requestPage(sheet, encoded);
         bindRequest(sheet, encoded);
-      } catch { app.innerHTML = invalidSheetPage(); }
+      } catch {
+        document.title = 'Incomplete link — Request Sheet';
+        app.innerHTML = invalidSheetPage();
+      }
     } else {
+      document.title = demoMode ? 'Demo — Request Sheet' : 'Request Sheet — Build a quote request form';
       app.innerHTML = builderPage();
       bindBuilder();
     }
+  }
+  else {
+    document.title = 'Page not found — Request Sheet';
+    app.innerHTML = notFoundPage();
   }
   bindGlobal();
 }
