@@ -31,6 +31,8 @@ Open `/?demo=1` or choose **Try it with sample data** for an isolated sample. De
 
 `npm test` runs Vitest and Playwright 1.58.2 checks in desktop Chromium and a 390×844 mobile viewport. `npm run lint` checks source and tests. `npm run typecheck` runs strict TypeScript checking. Deploy the generated `dist/` directory with `index.html` at its root.
 
+Run the same browser suite against a deployed site with `PLAYWRIGHT_BASE_URL=https://example.test npm run test:e2e`.
+
 ## Paid unlock
 
 Studio is a $9.99 USD one-time presentation upgrade. It removes the Request Sheet credit and adds a custom closing line and client-reference field. Sharing and every export format remain free.

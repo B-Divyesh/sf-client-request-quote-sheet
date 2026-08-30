@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { readFile } from 'node:fs/promises';
 
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:4173';
+
 async function waitForServiceWorkerControl(page: import('@playwright/test').Page): Promise<void> {
   const controlled = await page.evaluate(async () => {
     if (!('serviceWorker' in navigator)) return false;
@@ -227,7 +229,7 @@ test('has no serious accessibility violations on primary and legal states', asyn
 });
 
 test('@claim:offline-reload keeps the controlled production shell and demo sheet after an offline reload', async ({ browser }) => {
-  const context = await browser.newContext({ baseURL: 'http://127.0.0.1:4173' });
+  const context = await browser.newContext({ baseURL });
   try {
     const page = await context.newPage();
     await page.goto('/?demo=1');
