@@ -11,6 +11,7 @@ const demoMode = isDemoMode();
 let license: LicenseState = initialLicense();
 let pendingBuilderSave: { sheet: RequestSheet; timer: number } | null = null;
 let pendingRequestUpdate: { run: () => void; timer: number } | null = null;
+let renderedRoute = '';
 
 function escapeHtml(value: unknown): string {
   return String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]!);
@@ -48,7 +49,7 @@ function shell(content: string, section = ''): string {
     <footer class="site-footer">
       <div><strong>Request Sheet</strong><p>Build and export quote requests without an account.</p></div>
       <div><a href="${privacyUrl}">Privacy</a><a href="${termsUrl}">Terms</a><button class="link-button" data-action="clear-data">Erase local data</button></div>
-      <p class="provenance">No analytics. No accounts. Editorial image generated for this product with the factory image model. Version 1.0.1 · repair 4.</p>
+      <p class="provenance">Built by Param Factory. No analytics. No accounts. Editorial image generated for this product with the factory image model. Version 1.0.2 · repair 5.</p>
     </footer>
     <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>`;
 }
@@ -84,10 +85,11 @@ function builderPage(): string {
     <section class="hero">
       <div class="hero-copy">
         <p class="kicker">Client request builder</p>
-        <h1>A request sheet,<br><em>not a storefront.</em></h1>
-        <p class="dek">Give repeat clients one focused place to mark what they need. Every selection becomes a quote draft, never an order.</p>
+        <h1>Build quote request sheets</h1>
+        <p class="dek">For service businesses with repeat clients, turn allowed selections into a non-binding quote request.</p>
         <div class="hero-actions"><a class="button primary" href="/?demo=1#compose">Try it with sample data ${icon('arrow')}</a><a class="button secondary" href="#compose">Build your own sheet</a></div>
         <p class="action-note">The sample opens a filled service list you can edit.</p>
+        <ul class="hero-facts" aria-label="Product facts"><li>Your entries stay local</li><li>Works offline after one visit</li><li>Studio costs $9.99 once</li></ul>
       </div>
       <figure class="hero-plate">
         <picture>
@@ -97,9 +99,6 @@ function builderPage(): string {
         </picture>
         <figcaption>Request → review → quote. No checkout in between.</figcaption>
       </figure>
-    </section>
-    <section class="principles" aria-label="Product facts">
-      <p><span>01</span> Your entries stay local</p><p><span>02</span> Works offline after one visit</p><p><span>03</span> Studio costs $9.99 once</p>
     </section>
     <section class="compose" id="compose">
       <div class="section-lead"><p class="folio">Set the terms</p><h2>Compose the sheet</h2><p>Start with the example, then make it yours. Your item list is encoded in the link—nothing is published to our servers.</p></div>
@@ -118,6 +117,10 @@ function builderPage(): string {
         <div class="form-actions"><button class="button primary" type="submit">Create share link ${icon('arrow')}</button><span class="autosave-status" id="save-status" aria-live="polite">Saved on this device</span></div>
       </form>
       <section id="share-result" class="result-sheet" hidden aria-live="polite"></section>
+    </section>
+    <section class="how-it-works" aria-labelledby="how-it-works-title">
+      <div class="section-lead"><p class="folio">How it works</p><h2 id="how-it-works-title">Send a request in three steps</h2></div>
+      <ol><li><strong>List</strong><span>Add the work clients may request and mark prices as indicative or on ask.</span></li><li><strong>Share</strong><span>Send the generated link to a repeat client.</span></li><li><strong>Review</strong><span>Open the packet and prepare a human-reviewed quote.</span></li></ol>
     </section>
     <section class="packet-reader">
       <div class="section-lead"><p class="folio">Request packet import</p><h2>Open a request packet</h2><p>A client can send the small JSON packet they downloaded. Open it here to inspect the request and export CSV or PDF again.</p></div>
@@ -175,6 +178,13 @@ function flushPendingBuilderSave(): void {
   const { sheet } = pendingBuilderSave;
   pendingBuilderSave = null;
   persistBuilderSheet(sheet);
+}
+
+function discardPendingChanges(): void {
+  if (pendingBuilderSave) window.clearTimeout(pendingBuilderSave.timer);
+  pendingBuilderSave = null;
+  if (pendingRequestUpdate) window.clearTimeout(pendingRequestUpdate.timer);
+  pendingRequestUpdate = null;
 }
 
 function saveBuilder(): boolean {
@@ -435,7 +445,7 @@ function invalidSheetPage(): string {
 }
 
 function notFoundPage(): string {
-  return shell(`<section class="state-page"><p class="kicker">Page not found</p><h1>This page is not on the sheet.</h1><p>Check the address or return to the request-sheet builder.</p><a class="button primary" href="/">Build a request sheet ${icon('arrow')}</a></section>`);
+  return shell(`<section class="state-page"><p class="kicker">Page not found</p><h1>This page was not found.</h1><p>Check the address or return to build a request sheet.</p><a class="button primary" href="/">Build a request sheet ${icon('arrow')}</a></section>`);
 }
 
 function privacyPage(): string {
@@ -454,6 +464,7 @@ function bindGlobal(): void {
     if (location.pathname === '/') window.setTimeout(render, 400);
   }));
   document.querySelector('[data-action="reset-demo"]')?.addEventListener('click', () => {
+    discardPendingChanges();
     clearProductData(false);
     history.replaceState(null, '', '/?demo=1#compose');
     render();
@@ -465,7 +476,14 @@ function bindGlobal(): void {
   });
 }
 
-function render(): void {
+function announceRouteChange(): void {
+  const heading = document.querySelector<HTMLElement>('main h1');
+  heading?.focus({ preventScroll: true });
+  const announcer = document.querySelector<HTMLElement>('#route-announcement');
+  if (announcer) announcer.textContent = `Opened ${document.title}.`;
+}
+
+function render(announceRoute = false): void {
   flushPendingBuilderSave();
   if (pendingRequestUpdate) {
     window.clearTimeout(pendingRequestUpdate.timer);
@@ -473,11 +491,14 @@ function render(): void {
     pendingRequestUpdate = null;
     run();
   }
+  let route = 'not-found';
   if (location.pathname === '/privacy' || location.pathname === '/privacy/') {
+    route = 'privacy';
     document.title = 'Privacy — Request Sheet';
     app.innerHTML = privacyPage();
   }
   else if (location.pathname === '/terms' || location.pathname === '/terms/') {
+    route = 'terms';
     document.title = 'Terms — Request Sheet';
     app.innerHTML = termsPage();
   }
@@ -485,16 +506,19 @@ function render(): void {
     const match = location.hash.match(/^#sheet=(.+)$/);
     if (match) {
       try {
+        route = 'request';
         const encoded = match[1]!;
         const sheet = decodeSheet(encoded);
         document.title = `Request for ${sheet.businessName} — Request Sheet`;
         app.innerHTML = requestPage(sheet, encoded);
         bindRequest(sheet, encoded);
       } catch {
+        route = 'incomplete-link';
         document.title = 'Incomplete link — Request Sheet';
         app.innerHTML = invalidSheetPage();
       }
     } else {
+      route = 'builder';
       document.title = demoMode ? 'Demo — Request Sheet' : 'Request Sheet — Build a quote request form';
       app.innerHTML = builderPage();
       bindBuilder();
@@ -504,7 +528,11 @@ function render(): void {
     document.title = 'Page not found — Request Sheet';
     app.innerHTML = notFoundPage();
   }
+  document.querySelector<HTMLElement>('main h1')?.setAttribute('tabindex', '-1');
   bindGlobal();
+  const routeChanged = renderedRoute !== '' && renderedRoute !== route;
+  renderedRoute = route;
+  if (announceRoute && routeChanged) announceRouteChange();
 }
 
 document.querySelector<HTMLAnchorElement>('.skip-link')?.addEventListener('click', (event) => {
@@ -512,9 +540,9 @@ document.querySelector<HTMLAnchorElement>('.skip-link')?.addEventListener('click
   document.querySelector<HTMLElement>('#main')?.focus();
 });
 
-window.addEventListener('hashchange', render);
-window.addEventListener('online', render);
-window.addEventListener('offline', render);
+window.addEventListener('hashchange', () => render(true));
+window.addEventListener('online', () => render());
+window.addEventListener('offline', () => render());
 render();
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => undefined));

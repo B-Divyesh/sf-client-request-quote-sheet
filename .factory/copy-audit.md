@@ -1,21 +1,22 @@
 # Landing-page copy audit
 
-Audited 2026-08-30. Counts treat contractions, prices, and hyphenated terms as one word. No sentence exceeds 22 words. No non-literal use of the banned words appears.
+Audited 2026-09-06. Counts treat contractions, prices, and hyphenated terms as one word. The first screen states the job, audience, first action, result, and three facts before the hero image at 390 px. No sentence exceeds 22 words. No banned word appears except literal license access.
 
 | Sentence | Words | Result |
 | --- | ---: | --- |
-| A request sheet, not a storefront. | 6 | Pass |
-| Give repeat clients one focused place to mark what they need. | 11 | Pass |
-| Every selection becomes a quote draft, never an order. | 9 | Pass |
-| The sample opens a filled service list you can edit. | 10 | Pass |
+| Build quote request sheets | 4 | Pass — job headline |
+| For service businesses with repeat clients, turn allowed selections into a non-binding quote request. | 14 | Pass — audience and result |
+| The sample opens a filled service list you can edit. | 10 | Pass — action result |
+| Your entries stay local | 4 | Pass |
+| Works offline after one visit | 5 | Pass |
+| Studio costs $9.99 once | 4 | Pass |
 | Request → review → quote. | 3 | Pass |
 | No checkout in between. | 4 | Pass |
-| Your entries stay local. | 4 | Pass |
-| Works offline after one visit. | 5 | Pass |
-| Studio costs $9.99 once. | 4 | Pass |
 | Start with the example, then make it yours. | 8 | Pass |
 | Your item list is encoded in the link—nothing is published to our servers. | 14 | Pass |
-| Used only to prepare the client’s email. | 7 | Pass |
+| Add the work clients may request and mark prices as indicative or on ask. | 14 | Pass |
+| Send the generated link to a repeat client. | 8 | Pass |
+| Open the packet and prepare a human-reviewed quote. | 9 | Pass |
 | A client can send the small JSON packet they downloaded. | 11 | Pass |
 | Open it here to inspect the request and export CSV or PDF again. | 13 | Pass |
 | JSON is read only in this browser. | 7 | Pass |

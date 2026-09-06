@@ -10,11 +10,25 @@
     <title>Page not found — Request Sheet</title>
   </head>
   <body>
-    <main>
-      <p>Page not found</p>
-      <h1>This page is not on the sheet.</h1>
-      <p>Check the address or return to the request-sheet builder.</p>
-      <a href="/">Build a request sheet →</a>
+    <a class="skip-link" href="#main">Skip to main content</a>
+    <header class="site-header">
+      <a class="wordmark" href="/"><span aria-hidden="true">RS/</span> Request Sheet</a>
+      <nav aria-label="Primary">
+        <a href="/">Build a sheet</a>
+        <a href="/?demo=1">Demo</a>
+        <a href="/privacy">Privacy</a>
+      </nav>
+    </header>
+    <main id="main" tabindex="-1">
+      <p class="kicker">Page not found</p>
+      <h1>This page was not found.</h1>
+      <p>Check the address or return to build a request sheet.</p>
+      <a class="button" href="/">Build a request sheet</a>
     </main>
+    <footer class="site-footer">
+      <div><strong>Request Sheet</strong><p>Build and export quote requests without an account.</p></div>
+      <div><a href="/privacy">Privacy</a><a href="/terms">Terms</a></div>
+      <p>Built by Param Factory. Version 1.0.2 · repair 5.</p>
+    </footer>
   </body>
 </html>

@@ -15,10 +15,80 @@
   },
   {
     "id": "offline-reload",
-    "claim": "Saved sheets and exports work offline after the first visit",
+    "claim": "Saved sheets work offline after the first visit",
     "where": "offline banner, README",
     "test": "npm run test:e2e -- --grep @claim:offline-reload --project=chromium",
     "sandbox": "new browser context at ?demo=1; wait for service-worker control, go offline, reload, and assert saved sample data"
+  },
+  {
+    "id": "offline-exports",
+    "claim": "Exports a prepared request while offline after the first visit",
+    "where": "offline banner, README",
+    "test": "npm run test:e2e -- --grep @claim:offline-exports --project=chromium",
+    "sandbox": "new browser context at ?demo=1; wait for service-worker control, go offline, prepare the sample request, and inspect its downloaded CSV"
+  },
+  {
+    "id": "packet-import-export",
+    "claim": "Imports a JSON request packet and exports it again",
+    "where": "Request packet import section, README",
+    "test": "npm run test:e2e -- --grep @claim:packet-import-export --project=chromium",
+    "sandbox": "fresh demo entry; import a realistic JSON packet and inspect a new CSV download"
+  },
+  {
+    "id": "packet-copy",
+    "claim": "Copies a prepared request summary as text",
+    "where": "Prepared request actions",
+    "test": "npm run test:e2e -- --grep @claim:packet-copy --project=chromium",
+    "sandbox": "fresh sample request; choose Copy summary and inspect the browser clipboard"
+  },
+  {
+    "id": "packet-email",
+    "claim": "Opens a prepared email request",
+    "where": "Prepared request actions",
+    "test": "npm run test:e2e -- --grep @claim:packet-email --project=chromium",
+    "sandbox": "fresh sample request; inspect the generated mailto subject and body for the selected client and item"
+  },
+  {
+    "id": "price-on-ask",
+    "claim": "Keeps price-on-ask items outside the priced estimate",
+    "where": "Client request sheet, CSV export",
+    "test": "npm run test:e2e -- --grep @claim:price-on-ask --project=chromium",
+    "sandbox": "fresh sample request; select the on-ask item and inspect the review and CSV output"
+  },
+  {
+    "id": "studio-closing",
+    "claim": "Adds a Studio custom closing line to a shared request",
+    "where": "Studio section",
+    "test": "npm run test:e2e -- --grep @claim:studio-closing --project=chromium",
+    "sandbox": "mocked valid Studio license; set a closing line, share the sheet, and inspect the client request"
+  },
+  {
+    "id": "studio-reference",
+    "claim": "Adds a Studio client-reference field to a shared request",
+    "where": "Studio section",
+    "test": "npm run test:e2e -- --grep @claim:studio-reference --project=chromium",
+    "sandbox": "mocked valid Studio license; set a reference label, prepare a request, and inspect its JSON packet"
+  },
+  {
+    "id": "studio-credit",
+    "claim": "Removes the Request Sheet credit from a Studio shared request",
+    "where": "Studio section",
+    "test": "npm run test:e2e -- --grep @claim:studio-credit --project=chromium",
+    "sandbox": "mocked valid Studio license; remove the credit, share the sheet, and inspect the client request"
+  },
+  {
+    "id": "studio-license-restore",
+    "claim": "Restores Studio from a pasted license",
+    "where": "Studio section",
+    "test": "npm run test:e2e -- --grep @claim:studio-license-restore --project=chromium",
+    "sandbox": "fresh builder; paste a mocked valid license and inspect the enabled Studio controls"
+  },
+  {
+    "id": "local-data-deletion",
+    "claim": "Erases sheet data while keeping or removing the Studio license by choice",
+    "where": "Privacy page, footer",
+    "test": "npm run test:e2e -- --grep @claim:local-data-deletion --project=chromium",
+    "sandbox": "fresh browser state; erase local data once with Cancel and once with confirmation, then inspect the resulting workspace and license field"
   },
   {
     "id": "local-only",
