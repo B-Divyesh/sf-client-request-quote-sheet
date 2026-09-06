@@ -3,7 +3,7 @@
 ## Status: PASS
 
 Implementation candidate: `35c6a4d9f8c21c46d81f725e251ade50d8c1b5fd`
-Documentation commit: pending this handoff commit
+Documentation evidence commit: `711c81280f892452a7c261efb28e69f5dfddc075`
 Live URL: <https://client-request-quote-sheet.sociobot.in>
 Verified and deployed: 2026-09-06 UTC
 
