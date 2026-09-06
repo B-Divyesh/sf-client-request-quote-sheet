@@ -1,4 +1,4 @@
-# Handoff — independent verification 5
+# Handoff — review 1
 
 ## Status: PASS
 
@@ -8,25 +8,21 @@ Untested public claim count: **0**
 
 Implementation candidate: `35c6a4d9f8c21c46d81f725e251ade50d8c1b5fd`
 
-Documentation evidence commit: `711c81280f892452a7c261efb28e69f5dfddc075`
-
-Documentation citation follow-up reviewed: `0b67203079f1ec85ad34fcbb9100e7053ec61fbe`
+Documentation commit: `681a4eb99ff44b3c995edbfe08a604579cf171f2`
 
 Live URL: <https://client-request-quote-sheet.sociobot.in>
 
-Verified: 6 September 2026 UTC
+Reviewed: 6 September 2026 UTC
 
-## Product check
+## What was checked
 
-- **Job:** Turn an allowed service list and client selections into a non-binding quote-request packet.
-- **Audience:** Freelancers and small service businesses with repeat clients.
-- **First action:** Choose **Try it with sample data**; it opens a filled service list for editing.
+- Fresh 1366×900 desktop and 390×844 phone live sessions confirmed the job, audience, first action, sample output, persistent demo controls, reset, and real-data isolation.
+- Fresh-clone `npm ci`, high-severity audit, lint, typecheck, full test suite, build, every one of the 15 literal claim commands, and the live billing contract all passed.
+- The full live desktop/phone Playwright suite passed 50 checks. Axe found zero serious or critical violations on the primary, demo, legal, recovery, and 404 routes.
+- All 18 public build files byte-match live responses. Normal work remains local to the site origin; headers and service-worker caching meet the product contract.
+- Earlier checkout, service-worker, skip-link, mobile-target, autosave, demo-reset, claims, route-focus, 404, first-screen, and sitemap findings are all closed.
 
-Fresh 1366×900 desktop and 390×844 phone checks show the job, audience, first action, action result, and three facts before scrolling. The live sample is realistic, its demo label persists, reset discards immediate edits, and real workspace data remains unchanged.
-
-## Verification completed
-
-From a separate clean clone:
+## How to verify
 
 ```sh
 npm ci
@@ -38,18 +34,10 @@ npm run build
 npm run test:billing-live
 ```
 
-The final full local run passed 10 unit tests and 50 Playwright desktop/phone runs. The live suite passed 50/50. All 15 exact claim commands passed individually, their 15 IDs each have one tagged test, and no public claim is untested. A first local full-suite attempt had one non-repeating deletion-test timeout; the exact claim, ten repeated runs, the live suite, and the final full local suite all passed.
-
-Independent live checks covered the first screen, demo isolation, immediate reset, populated output, quantity 1000→999 recovery, negative-price recovery, empty submission, the 20-item limit, invalid JSON recovery, keyboard/focus, reduced motion, legal routes, privacy deletion, offline reload/export, route titles, sitemap, links, and the intentional 404. Axe reported zero violations on five routes in desktop and phone contexts. The factory URL verifier reported no browser errors.
-
-All 18 deployable files byte-match the live site. Billing catalog, $9.99 USD price, return URL, hosted checkout, and invalid-license response pass. This is a static PWA, so backend checks do not apply.
-
-Lighthouse 12.8.2 live mobile: **100 Performance / 100 Accessibility / 100 Best Practices / 100 SEO**; FCP 0.98 s, LCP 1.10 s, TBT 20 ms, CLS 0. The report was written before the recurring runner teardown crash.
-
-Full evidence and earlier-finding dispositions: [`.factory/verification-5.md`](verification-5.md).
+Open `/?demo=1` or choose **Try it with sample data**. The sample uses `demo:` local-storage records; **Reset demo** clears only those records and **Start for real** discards them.
 
 ## Known gaps
 
-No product defects are known. A real purchase was not submitted; checkout was verified through the hosted price page and the production billing contract without spending money.
+No product defects are known. A purchase was not submitted; the hosted checkout page and production billing contract were verified without spending money.
 
-No product code changed during verification.
+No product code changed during this review. Full evidence: [`.factory/review-1.md`](review-1.md).
