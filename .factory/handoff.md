@@ -1,39 +1,33 @@
-# Handoff — independent verification 4
+# Handoff — repair 5
 
-## Status: FAIL
+## Status: PASS
 
-Independent verification found **6 findings** and **9 public claims without a complete tagged claim command**. The full report is in `.factory/verification-4.md`.
-
-Implementation candidate: `60ba2c7e3cef45d716ccfb9edd4545a51851ced6`
-
-Documentation baseline: `d3448acdd6b00a6b9dd678b31b1d7bda2de479ae`
-
+Implementation candidate: `35c6a4d9f8c21c46d81f725e251ade50d8c1b5fd`
+Documentation commit: pending this handoff commit
 Live URL: <https://client-request-quote-sheet.sociobot.in>
+Verified and deployed: 2026-09-06 UTC
 
-Verified: 5 September 2026 UTC
+## Product check
 
-`d3448ac` is report-only. `60ba2c7` is the last implementation/configuration commit and is the implementation reviewed. A fresh build produced 18 public files that all byte-match the live deployment.
+- **Job:** Turn an allowed service list and client selections into a non-binding quote-request packet.
+- **Audience:** Freelancers and small service businesses with repeat clients.
+- **First action:** Choose **Try it with sample data**; it opens a filled service list for editing.
 
-## What passed
+Fresh desktop and 390 × 844 phone checks confirm that the job, audience, sample action, its result, and the three plain facts appear before the hero image. The visual system remains the documented monochrome request-docket broadsheet.
 
-- Fresh install, audit, lint, strict type-check, 10 unit tests, 28 local browser runs, and production build.
-- The same 28 browser runs against live desktop and 390×844 contexts.
-- All five declared claims commands, including the production billing gate.
-- Normal request flow, CSV/PDF/JSON output, JSON import recovery, price-on-ask output, copy, email link, offline reload/export, local deletion, and demo isolation from real keys.
-- Live `$9.99` Studio checkout redirected to hosted Dodo checkout and showed the correct price. A mocked valid production response proved pasted restore and all three presentation controls.
-- All earlier checkout, service-worker cache, skip-link, touch-target, and deferred-save navigation findings are repaired.
-- Lighthouse report: 100 Performance / 100 Accessibility / 100 Best Practices / 100 SEO. The known post-report Chromium teardown crash remains; the report is valid and other browser checks exit cleanly.
+## What changed
 
-## Release blockers
+- Cancel pending builder and client-draft timers before **Reset demo** clears demo storage. An immediate edit → reset → reload now restores Northline Studio and cannot write into `demo:` afterward.
+- Add a dedicated polite route announcer and focus each new route H1 after client-sheet hash navigation and browser back navigation.
+- Give the deliberate static 404 a skip link, shared header/navigation, focusable main, footer, plain recovery copy, and the existing HTTP 404 status.
+- Make the landing headline name the job, name service businesses in the supporting sentence, put the three facts in the phone first screen, add three clear **How it works** steps, and add the Param Factory footer attribution.
+- Add the public `?demo=1` entry to the sitemap.
+- Expand `.factory/claims.json` from 5 to 15 outcome-based claims. New browser claims cover offline export, packet import/re-export, copy, email, price-on-ask handling, all three Studio presentation controls, pasted-license restore, and both data-deletion choices.
+- Add `.factory/catalog-description.txt` and the required evidence copy. The catalog description is: “Build quote request sheets for repeat-client service businesses.”
 
-1. Immediate edit → **Reset demo** preserves the edit through reload; the second reset works. The declared test waits past the race and misses it.
-2. Nine public claims have no complete tagged claim command: offline export; JSON import/re-export; copied text; email request; three Studio presentation controls; pasted-license restore; and both local-data deletion choices.
-3. Hash-route changes render the client sheet without moving focus to or announcing the new H1.
-4. The intentional 404 has the right status and design but lacks the required skip link, header, navigation, and footer.
-5. The landing page misses required first-screen/section/footer elements, and the phone first viewport does not show the three plain facts.
-6. The sitemap omits `/?demo=1`.
+## Verification
 
-## How to reproduce
+From the documented clean setup:
 
 ```sh
 npm ci
@@ -43,16 +37,24 @@ npm run typecheck
 npm test
 npm run build
 npm run test:billing-live
-PLAYWRIGHT_BASE_URL=https://client-request-quote-sheet.sociobot.in npm run test:e2e
 ```
 
-For the reset defect, open the live `/?demo=1`, change **Business name**, and immediately choose **Reset demo**. The changed value remains after reload. Choose reset again to recover the original Northline Studio sample.
+All passed. `npm test` passed 10 unit tests and 50 Playwright desktop/mobile runs. Each of the 15 exact claim commands in `.factory/claims.json` was also run individually with the documented Chromium project; all passed. The live billing contract passed: the registered Studio offer redirects to hosted checkout and returns the expected invalid-license response shape.
 
-## Next steps
+Live HTTPS verification after deployment:
 
-- Cancel pending demo saves before reset and add an immediate-reset regression.
-- Complete `.factory/claims.json` and add one tagged observable test for every public claim.
-- Implement route focus/announcement and the required 404/landing/footer/sitemap structure.
-- Deploy the repaired artifact and run a fresh independent verification.
+- `PLAYWRIGHT_BASE_URL=https://client-request-quote-sheet.sociobot.in npm run test:e2e` passed all 50 runs in fresh desktop and phone contexts.
+- `/opt/fleet/lib/verify-url.sh` passed: HTTP 200, 706 ms measured load, no console/page errors, title, `lang=en`, one H1, main landmark, image alt text, and labeled buttons.
+- Route checks: `/`, `/?demo=1`, `/privacy`, and `/terms` returned HTTP 200 with their own correct titles; `/missing-page` returned HTTP 404 with one H1 and main.
+- Playwright axe scans found no serious or critical issues across builder, client, legal, recovery, and 404 states. Keyboard, visible focus, 44 px targets, reduced motion, valid/invalid/boundary/recovery flows, local deletion, and offline reload/export passed.
+- All 18 deployable public files byte-match the live responses. Root policy headers include the expected CSP, referrer policy, MIME protection, and permissions policy; `/sw.js` is `Cache-Control: no-cache`.
+- Lighthouse live mobile report: Performance 100, Accessibility 100, Best Practices 100, SEO 100; FCP 1.00 s, LCP 1.11 s, TBT 38.5 ms, CLS 0. The Lighthouse runner wrote this valid report, then reported a Chromium tab crash during teardown; separate browser checks completed cleanly.
 
-No product code was changed in this verification. Only `.factory/verification-4.md`, this handoff, and the required external evidence copies are report outputs.
+## Deployment
+
+Built `dist/` and deployed it with the factory static deploy tool to the existing `sf-client-request-quote-sheet` Azure Static Web App. The deploy reused the existing app and its production domain; HTTPS now serves the implementation asset `index-CdVANELG.js` from the implementation SHA above.
+
+## Known limits
+
+- Studio checkout, catalog price, return URL, and invalid-token verification are live. The automated suite proves paid presentation behavior with a mocked valid billing response and proves pasted-license restoration. It does not complete a real paid purchase or use a real entitlement token; that requires a legitimate buyer transaction through the hosted merchant flow.
+- No product defects are known. The Lighthouse teardown warning is runner-only evidence, not a page error.

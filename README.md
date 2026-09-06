@@ -1,4 +1,4 @@
-# Request Sheet
+# Build quote request sheets
 
 Request Sheet is a local-first quote-request handoff for freelancers and small service businesses. An owner lists the work clients may request. Each line has an indicative price or “price on ask.” The owner then shares one encoded link. A client selects quantities and adds contact details and requirements. The resulting packet can be reviewed as CSV, PDF, JSON, copied text, or email.
 
